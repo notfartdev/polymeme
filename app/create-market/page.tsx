@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
 import { TokenInfoCard } from "@/components/token-info-card"
+import { useWallet } from '@solana/wallet-adapter-react'
 
 // Mock wallet assets (SPL tokens from user's wallet)
 const walletAssets = [
@@ -223,6 +224,7 @@ export default function CreateMarketPage() {
   const { t } = useI18n()
   const { toast } = useToast()
   const router = useRouter()
+  const { publicKey } = useWallet()
   
   // Form state
   const [selectedAsset, setSelectedAsset] = useState("")
@@ -380,6 +382,8 @@ export default function CreateMarketPage() {
         closingDate: closingDateTime.toISOString(),
         // Include token mint address for smart contract
         tokenMint: selectedToken?.mint,
+        // Include wallet address for user linking
+        creatorWalletAddress: publicKey?.toString(),
         // Initial bet details
         initialBet: {
           amount: betAmount,

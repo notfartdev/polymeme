@@ -8,6 +8,7 @@ import { useState } from "react"
 import { useI18n } from "@/lib/i18n"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+import { WalletConnect } from "@/components/wallet-connect"
 
 export function Header() {
   const { t, locale, setLocale } = useI18n()
@@ -96,10 +97,7 @@ export function Header() {
             <Input placeholder={t("search_placeholder")} className="pl-10 w-48" />
           </div>
 
-          <Button size="sm" className="gap-2">
-            <Wallet className="w-4 h-4" />
-            {t("connect_wallet")}
-          </Button>
+          <WalletConnect />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

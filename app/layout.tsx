@@ -5,6 +5,8 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { I18nProvider } from '@/lib/i18n'
 import { Toaster } from '@/components/ui/toaster'
+import { WalletContextProvider } from '@/contexts/WalletContext'
+import { UserProvider } from '@/contexts/UserContext'
 
 export const metadata: Metadata = {
   title: 'v0 App',
@@ -20,11 +22,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <I18nProvider>
-          {children}
-          <Toaster />
-          <Analytics />
-        </I18nProvider>
+        <WalletContextProvider>
+          <UserProvider>
+            <I18nProvider>
+              {children}
+              <Toaster />
+              <Analytics />
+            </I18nProvider>
+          </UserProvider>
+        </WalletContextProvider>
       </body>
     </html>
   )

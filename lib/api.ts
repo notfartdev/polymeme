@@ -70,12 +70,20 @@ export interface CreateMarketRequest {
   description: string
   closingDate: string
   tokenMint?: string // SPL token mint address for smart contract
+  creatorWalletAddress?: string // Wallet address of the creator
   multipleChoiceOptions?: string[]
   minValue?: string
   maxValue?: string
   unit?: string
   earliestDate?: string
   latestDate?: string
+  initialBetAmount?: string
+  betSide?: 'yes' | 'no'
+  initialBet?: {
+    amount: string
+    side: 'yes' | 'no'
+    token: string
+  }
 }
 
 export interface MarketResponse {

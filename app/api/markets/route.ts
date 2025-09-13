@@ -9,6 +9,7 @@ export interface CreateMarketRequest {
   description: string
   closingDate: string
   tokenMint?: string // SPL token mint address for smart contract
+  creatorWalletAddress?: string // Wallet address of the creator
   multipleChoiceOptions?: string[]
   minValue?: string
   maxValue?: string
@@ -17,6 +18,11 @@ export interface CreateMarketRequest {
   latestDate?: string
   initialBetAmount?: string
   betSide?: 'yes' | 'no'
+  initialBet?: {
+    amount: string
+    side: 'yes' | 'no'
+    token: string
+  }
 }
 
 export interface MarketResponse {
@@ -79,6 +85,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get or create user if wallet address is provided
+    let creatorUserId = null
+    if (body.creatorWalletAddress) {
+      const { data: userData, error: userError } = await supabase
+        .rpc('get_or_create_user', {
+          p_wallet_address: body.creatorWalletAddress,
+          p_wallet_name: null
+        })
+      
+      if (userError) {
+        console.error('Error creating user:', userError)
+        return NextResponse.json(
+          { error: 'Failed to create user' },
+          { status: 500 }
+        )
+      }
+      creatorUserId = userData.id
+    }
+
     // Create new market data for Supabase
     const marketData = {
       asset: body.asset,
@@ -87,7 +112,9 @@ export async function POST(request: NextRequest) {
       description: body.description,
       closing_date: body.closingDate,
       status: 'active',
-      creator: 'demo_user', // In production, this would come from authentication
+      creator: body.creatorWalletAddress || 'demo_user',
+      creator_wallet_address: body.creatorWalletAddress,
+      creator_user_id: creatorUserId,
       token_mint: body.tokenMint,
       // Type-specific fields
       multiple_choice_options: body.multipleChoiceOptions,
@@ -97,8 +124,8 @@ export async function POST(request: NextRequest) {
       earliest_date: body.earliestDate,
       latest_date: body.latestDate,
       // Betting fields
-      initial_bet_amount: body.initialBetAmount,
-      bet_side: body.betSide,
+      initial_bet_amount: body.initialBetAmount || body.initialBet?.amount,
+      bet_side: body.betSide || body.initialBet?.side,
       total_yes_bets: 0,
       total_no_bets: 0,
       total_volume: 0
