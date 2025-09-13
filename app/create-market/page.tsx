@@ -21,16 +21,9 @@ import { useRouter } from "next/navigation"
 import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
 import { TokenInfoCard } from "@/components/token-info-card"
 import { useWallet } from '@solana/wallet-adapter-react'
+import { useWalletAssets } from '@/hooks/use-wallet-assets'
 
-// Mock wallet assets (SPL tokens from user's wallet)
-const walletAssets = [
-  { symbol: "WIF", name: "dogwifhat", balance: 2500, logo: "/wif-logo.png", mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm" },
-  { symbol: "PEPE", name: "Pepe", balance: 50000, logo: "/pepe-logo.png", mint: "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump" },
-  { symbol: "SHIBA", name: "Shiba Inu", balance: 100000, logo: "/shib-logo.png", mint: "CiKu4e2V7VH9VdTS4DLiZHYy2q3h1ha4n6uLx5Yk3Q1e" },
-  { symbol: "TROLL", name: "Troll", balance: 15000, logo: "/troll-logo.png", mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
-  { symbol: "PUMP", name: "Pump.fun", balance: 750, logo: "/pump-logo.png", mint: "6WCsTZ5VjVh8YjJ7yQZ9KQanSqYXRcF8fBopzLHYxdM65" },
-  { symbol: "BONK", name: "Bonk", balance: 1000000, logo: "/bonk-logo.png", mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
-]
+// Wallet assets will be fetched from the user's actual wallet
 
 // Enhanced smart suggestions based on real-time data and events
 const getSmartSuggestions = (tokenData: TokenData | null, tokenSymbol: string) => {
@@ -225,6 +218,7 @@ export default function CreateMarketPage() {
   const { toast } = useToast()
   const router = useRouter()
   const { publicKey } = useWallet()
+  const { assets: walletAssets, loading: assetsLoading } = useWalletAssets()
   
   // Form state
   const [selectedAsset, setSelectedAsset] = useState("")

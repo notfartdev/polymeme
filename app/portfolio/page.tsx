@@ -14,9 +14,12 @@ import {
   DollarSign,
   Activity,
   Filter,
+  RefreshCw,
 } from "lucide-react"
 import Header from "@/components/header"
 import { useI18n } from "@/lib/i18n"
+import { useWalletAssets } from "@/hooks/use-wallet-assets"
+import { useWallet } from '@solana/wallet-adapter-react'
 
 // Mock wallet data
 const walletData = {
@@ -89,11 +92,15 @@ const performanceStats = {
 
 export default function PortfolioPage() {
   const { t } = useI18n()
+  const { publicKey, connected } = useWallet()
+  const { assets, loading, error, totalValue, totalChange, refetch } = useWalletAssets()
   const [selectedTab, setSelectedTab] = useState("overview")
   const [twitterConnected, setTwitterConnected] = useState(false)
 
   const copyAddress = () => {
-    navigator.clipboard.writeText(walletData.address)
+    if (publicKey) {
+      navigator.clipboard.writeText(publicKey.toString())
+    }
   }
 
   return (
@@ -108,6 +115,15 @@ export default function PortfolioPage() {
             <Button
               variant="outline"
               className="gap-2 bg-transparent"
+              onClick={refetch}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2 bg-transparent"
               onClick={() => setTwitterConnected(!twitterConnected)}
             >
               <Twitter className="h-4 w-4" />
@@ -115,7 +131,7 @@ export default function PortfolioPage() {
             </Button>
             <Button className="gap-2">
               <Wallet className="h-4 w-4" />
-              {walletData.connected ? t("connected") : t("connect_wallet")}
+              {connected ? t("connected") : t("connect_wallet")}
             </Button>
           </div>
         </div>
@@ -127,10 +143,12 @@ export default function PortfolioPage() {
               <span className="text-sm text-muted-foreground">{t("total_balance")}</span>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="text-2xl font-bold">${walletData.balance.toLocaleString()}</div>
-            <div className="flex items-center gap-1 text-green-600 text-sm">
+            <div className="text-2xl font-bold">
+              {loading ? 'Loading...' : `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+            </div>
+            <div className={`flex items-center gap-1 text-sm ${totalChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               <TrendingUp className="h-3 w-3" />
-              +5.2% (24h)
+              {loading ? '...' : `${totalChange >= 0 ? '+' : ''}${totalChange.toFixed(2)}%`} (24h)
             </div>
           </Card>
 
@@ -165,25 +183,29 @@ export default function PortfolioPage() {
         </div>
 
         {/* Wallet Address */}
-        <Card className="p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Wallet className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-sm text-muted-foreground">{t("wallet_address")}</div>
-                <div className="font-mono text-sm">{walletData.address}</div>
+        {connected && publicKey && (
+          <Card className="p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Wallet className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">{t("wallet_address")}</div>
+                  <div className="font-mono text-sm">
+                    {publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-8)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={copyAddress}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm">
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={copyAddress}>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex gap-1 mb-6 border-b">
@@ -232,26 +254,47 @@ export default function PortfolioPage() {
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">{t("top_assets")}</h3>
               <div className="space-y-3">
-                {walletData.assets.slice(0, 3).map((asset) => (
-                  <div key={asset.symbol} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                        <span className="text-xs font-bold">{asset.symbol.slice(0, 2)}</span>
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm">{asset.symbol}</div>
-                        <div className="text-xs text-muted-foreground">{asset.amount.toLocaleString()}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold">${asset.value.toFixed(2)}</div>
-                      <div className={`text-xs ${asset.change >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {asset.change >= 0 ? "+" : ""}
-                        {asset.change}%
-                      </div>
-                    </div>
+                {loading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span className="ml-2 text-sm">Loading assets...</span>
                   </div>
-                ))}
+                ) : assets.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p className="text-sm">No assets found</p>
+                  </div>
+                ) : (
+                  assets.slice(0, 3).map((asset) => (
+                    <div key={asset.mint} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                          {asset.logo ? (
+                            <img src={asset.logo} alt={asset.symbol} className="w-6 h-6 rounded-full" />
+                          ) : (
+                            <span className="text-xs font-bold">{asset.symbol.slice(0, 2)}</span>
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-medium text-sm">{asset.symbol}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {asset.balance.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">
+                          {asset.value ? `$${asset.value.toFixed(2)}` : 'N/A'}
+                        </div>
+                        {asset.change24h !== undefined && (
+                          <div className={`text-xs ${asset.change24h >= 0 ? "text-green-600" : "text-red-600"}`}>
+                            {asset.change24h >= 0 ? "+" : ""}
+                            {asset.change24h.toFixed(2)}%
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
           </div>
@@ -266,34 +309,60 @@ export default function PortfolioPage() {
                 {t("filter")}
               </Button>
             </div>
-            <div className="space-y-3">
-              {walletData.assets.map((asset) => (
-                <div
-                  key={asset.symbol}
-                  className="flex items-center justify-between p-4 border border-border rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-                      <span className="font-bold">{asset.symbol.slice(0, 2)}</span>
+            
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin" />
+                <span className="ml-2">Loading assets...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-red-600">
+                <p>Error loading assets: {error}</p>
+                <Button onClick={refetch} className="mt-2">Retry</Button>
+              </div>
+            ) : assets.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No assets found in your wallet</p>
+                <p className="text-sm">Connect your wallet to see your tokens</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {assets.map((asset) => (
+                  <div
+                    key={asset.mint}
+                    className="flex items-center justify-between p-4 border border-border rounded-lg"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                        {asset.logo ? (
+                          <img src={asset.logo} alt={asset.symbol} className="w-8 h-8 rounded-full" />
+                        ) : (
+                          <span className="font-bold">{asset.symbol.slice(0, 2)}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-semibold">{asset.symbol}</div>
+                        <div className="text-sm text-muted-foreground">{asset.name}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-semibold">{asset.symbol}</div>
-                      <div className="text-sm text-muted-foreground">{asset.name}</div>
+                    <div className="text-right">
+                      <div className="font-semibold">
+                        {asset.value ? `$${asset.value.toFixed(2)}` : 'N/A'}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {asset.balance.toLocaleString(undefined, { maximumFractionDigits: 6 })} {asset.symbol}
+                      </div>
+                      {asset.change24h !== undefined && (
+                        <div className={`text-sm ${asset.change24h >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {asset.change24h >= 0 ? "+" : ""}
+                          {asset.change24h.toFixed(2)}%
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">${asset.value.toFixed(2)}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {asset.amount.toLocaleString()} {asset.symbol}
-                    </div>
-                    <div className={`text-sm ${asset.change >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {asset.change >= 0 ? "+" : ""}
-                      {asset.change}%
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         )}
 
