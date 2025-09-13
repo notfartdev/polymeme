@@ -1,0 +1,712 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { CalendarIcon, Wallet, CheckCircle, HelpCircle, Users, Hash, CalendarIcon as CalendarIcon2, Clock } from "lucide-react"
+import { format } from "date-fns"
+import Header from "@/components/header"
+import { useI18n } from "@/lib/i18n"
+import { marketApi, handleApiError, CreateMarketRequest } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
+import { TokenInfoCard } from "@/components/token-info-card"
+
+// Mock wallet assets (SPL tokens from user's wallet)
+const walletAssets = [
+  { symbol: "WIF", name: "dogwifhat", balance: 2500, logo: "/wif-logo.png", mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm" },
+  { symbol: "PEPE", name: "Pepe", balance: 50000, logo: "/pepe-logo.png", mint: "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump" },
+  { symbol: "SHIBA", name: "Shiba Inu", balance: 100000, logo: "/shib-logo.png", mint: "CiKu4e2V7VH9VdTS4DLiZHYy2q3h1ha4n6uLx5Yk3Q1e" },
+  { symbol: "TROLL", name: "Troll", balance: 15000, logo: "/troll-logo.png", mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
+  { symbol: "PUMP", name: "Pump.fun", balance: 750, logo: "/pump-logo.png", mint: "6WCsTZ5VjVh8YjJ7yQZ9KQanSqYXRcF8fBopzLHYxdM65" },
+  { symbol: "BONK", name: "Bonk", balance: 1000000, logo: "/bonk-logo.png", mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
+]
+
+// Enhanced smart suggestions based on real-time data and events
+const getSmartSuggestions = (tokenData: TokenData | null, tokenSymbol: string) => {
+  if (!tokenData) {
+    return [
+      `Will ${tokenSymbol} reach $0.01 by end of 2024?`,
+      `Will ${tokenSymbol} 10x by Q2 2025?`,
+      `Will ${tokenSymbol} break its ATH by end of 2024?`,
+      `Will ${tokenSymbol} be listed on Binance by end of 2024?`,
+    ]
+  }
+
+  const currentPrice = tokenData.currentPrice
+  const ath = tokenData.ath
+  const marketCap = tokenData.marketCap
+  const priceToATH = ath > 0 ? ((ath - currentPrice) / ath * 100) : 0
+  
+  return [
+    // Price-based suggestions
+    `Will ${tokenSymbol} reach $${(currentPrice * 2).toFixed(6)} by end of 2024?`,
+    `Will ${tokenSymbol} reach $${(currentPrice * 5).toFixed(6)} by Q2 2025?`,
+    `Will ${tokenSymbol} break its ATH of $${ath.toFixed(6)} by end of 2024?`,
+    
+    // Market cap based suggestions
+    marketCap > 1e9 ? 
+      `Will ${tokenSymbol} reach $${(marketCap * 2 / 1e9).toFixed(1)}B market cap by 2025?` :
+      `Will ${tokenSymbol} reach $1B market cap by 2025?`,
+    
+    // Recovery suggestions (if down from ATH)
+    priceToATH > 50 ? 
+      `Will ${tokenSymbol} recover 50% from its ATH by end of 2024?` :
+      `Will ${tokenSymbol} reach new ATH by end of 2024?`,
+    
+    // Exchange listing suggestions
+    `Will ${tokenSymbol} be listed on Binance by end of 2024?`,
+    `Will ${tokenSymbol} be listed on Coinbase by Q2 2025?`,
+    
+    // Time-based suggestions
+    `Will ${tokenSymbol} pump 100%+ in the next 30 days?`,
+    `Will ${tokenSymbol} survive the next bear market?`,
+  ]
+}
+
+// AI-assisted description suggestions
+const getDescriptionSuggestions = (question: string, tokenData: TokenData | null, tokenSymbol: string) => {
+  if (!question) return []
+  
+  const suggestions = [
+    `This market will resolve to "Yes" if the specified condition is met by the closing date. The outcome will be determined based on publicly available data from major exchanges and official sources.`,
+    
+    `Market resolution will be based on the token's performance against the specified target. Data will be sourced from CoinGecko, CoinMarketCap, and major centralized exchanges.`,
+    
+    `This prediction market allows participants to bet on the future performance of ${tokenSymbol}. The outcome will be determined using verifiable, publicly available data.`,
+    
+    `Resolution criteria: The market will close and resolve based on the token's price/market cap performance as reported by major data providers. All participants will receive their payouts within 24 hours of resolution.`,
+  ]
+  
+  // Add token-specific suggestions if we have data
+  if (tokenData) {
+    suggestions.push(
+      `Current ${tokenSymbol} data: Price $${tokenData.currentPrice.toFixed(6)}, Market Cap $${(tokenData.marketCap / 1e9).toFixed(2)}B, ATH $${tokenData.ath.toFixed(6)}. Market will resolve based on these metrics.`
+    )
+  }
+  
+  return suggestions
+}
+
+export default function CreateMarketPage() {
+  const { t } = useI18n()
+  const { toast } = useToast()
+  const router = useRouter()
+  const [selectedAsset, setSelectedAsset] = useState("")
+  const [question, setQuestion] = useState("")
+  const [description, setDescription] = useState("")
+  const [closingDate, setClosingDate] = useState<Date>()
+  const [closingTime, setClosingTime] = useState("23:59") // Default to end of day
+  const [walletConnected, setWalletConnected] = useState(true) // Mock connected state
+  const [isLoading, setIsLoading] = useState(false)
+  const [tokenData, setTokenData] = useState<TokenData | null>(null)
+  const [isLoadingTokenData, setIsLoadingTokenData] = useState(false)
+
+  const selectedToken = walletAssets.find(asset => asset.symbol === selectedAsset)
+  const questionSuggestions = getSmartSuggestions(tokenData, selectedAsset)
+  const descriptionSuggestions = getDescriptionSuggestions(question, tokenData, selectedAsset)
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuestion(suggestion)
+  }
+
+  const handleDescriptionSuggestionClick = (suggestion: string) => {
+    setDescription(suggestion)
+  }
+
+  // Combine date and time into a single Date object
+  const getClosingDateTime = (): Date | null => {
+    if (!closingDate) return null
+    
+    const [hours, minutes] = closingTime.split(':').map(Number)
+    const combinedDate = new Date(closingDate)
+    combinedDate.setHours(hours, minutes, 0, 0)
+    
+    return combinedDate
+  }
+
+  // Validate closing date and time
+  const validateClosingDateTime = (): string | null => {
+    const closingDateTime = getClosingDateTime()
+    if (!closingDateTime) return "Please select a closing date and time"
+    
+    const now = new Date()
+    if (closingDateTime <= now) {
+      return "Closing date and time must be in the future"
+    }
+    
+    // Check if it's too far in the future (more than 2 years)
+    const twoYearsFromNow = new Date()
+    twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2)
+    if (closingDateTime > twoYearsFromNow) {
+      return "Closing date cannot be more than 2 years in the future"
+    }
+    
+    // Check if it's too soon (less than 1 hour)
+    const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000)
+    if (closingDateTime < oneHourFromNow) {
+      return "Market must be open for at least 1 hour"
+    }
+    
+    return null
+  }
+
+  const handleAssetChange = async (assetSymbol: string) => {
+    setSelectedAsset(assetSymbol)
+    setQuestion("") // Clear previous question
+    setTokenData(null) // Clear previous token data
+    
+    if (assetSymbol) {
+      setIsLoadingTokenData(true)
+      try {
+        const data = await CoinGeckoAPI.getTokenData(assetSymbol)
+        setTokenData(data)
+        if (data) {
+          toast({
+            title: "Token data loaded",
+            description: `Fetched real-time data for ${data.name}`,
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching token data:", error)
+        toast({
+          title: "Failed to load token data",
+          description: "Using basic token information",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingTokenData(false)
+      }
+    }
+  }
+
+  const handleCreateMarket = async () => {
+    // Validate required fields
+    if (!selectedAsset || !question || !description || !closingDate) {
+      toast({
+        title: t("validation_error"),
+        description: t("missing_required_fields"),
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate closing date and time
+    const dateTimeError = validateClosingDateTime()
+    if (dateTimeError) {
+      toast({
+        title: t("validation_error"),
+        description: dateTimeError,
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const closingDateTime = getClosingDateTime()!
+      const marketData: CreateMarketRequest = {
+        asset: selectedAsset,
+        questionType: "yes-no", // Only Yes/No for MVP
+        question,
+        description,
+        closingDate: closingDateTime.toISOString(),
+        // Include token mint address for smart contract
+        tokenMint: selectedToken?.mint,
+      }
+
+      const createdMarket = await marketApi.createMarket(marketData)
+      
+      toast({
+        title: t("market_created_success"),
+        description: `Market "${createdMarket.question}" has been created successfully!`,
+      })
+
+      // Redirect to the new market or markets page
+      router.push(`/markets/${createdMarket.id}`)
+    } catch (error) {
+      console.error("Error creating market:", error)
+      toast({
+        title: t("market_creation_failed"),
+        description: handleApiError(error),
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (!walletConnected) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-12">
+          <Card className="max-w-md mx-auto p-8 text-center">
+            <Wallet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-xl font-semibold mb-2">{t("connect_wallet_title")}</h2>
+            <p className="text-muted-foreground mb-6">{t("connect_wallet_subtitle")}</p>
+            <Button onClick={() => setWalletConnected(true)} className="w-full">
+              {t("connect_wallet")}
+            </Button>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+
+      <div className="container mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">{t("create_market_title")}</h1>
+            <p className="text-muted-foreground">{t("create_market_subtitle")}</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Form */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Asset Selection */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Wallet className="h-5 w-5" />
+                  {t("select_asset_title")}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t("select_asset_subtitle")}
+                </p>
+                <Select value={selectedAsset} onValueChange={handleAssetChange} disabled={isLoadingTokenData}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingTokenData ? "Loading token data..." : t("select_token_placeholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {walletAssets.map((asset) => (
+                      <SelectItem key={asset.symbol} value={asset.symbol}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
+                            <span className="text-xs font-bold">{asset.symbol.slice(0, 2)}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium">{asset.symbol}</span>
+                            <span className="text-muted-foreground ml-2">({asset.balance.toLocaleString()})</span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Card>
+
+              {/* Question Type Info */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  Yes/No Prediction Market
+                </h3>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Create a simple Yes/No prediction about your selected token. 
+                    Traders can bet on whether the outcome will happen or not.
+                  </p>
+                </div>
+              </Card>
+
+              {/* Question Details */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">{t("market_question_title")}</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="question">{t("question_topic_label")}</Label>
+                    <Input
+                      id="question"
+                      placeholder={
+                        selectedAsset
+                          ? `Will ${selectedAsset} reach $0.01 by end of 2024?`
+                          : "Select a token first to see suggestions"
+                      }
+                      value={question}
+                      onChange={(e) => setQuestion(e.target.value)}
+                      className="mt-1"
+                    />
+                    {selectedAsset && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Market will be displayed as: ${selectedAsset} - {question}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Smart Suggestions */}
+                  {selectedAsset && questionSuggestions.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium">Smart Suggestions (Based on Real Data)</Label>
+                      <div className="mt-2 space-y-2">
+                        {questionSuggestions.slice(0, 6).map((suggestion, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="w-full text-left p-3 text-sm border rounded-lg hover:bg-muted/50 transition-colors hover:border-primary/50"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        💡 Suggestions are generated based on current price, market cap, and ATH data
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="description">{t("description_label")}</Label>
+                    <Textarea
+                      id="description"
+                      placeholder={t("description_placeholder")}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="mt-1 min-h-[100px]"
+                    />
+                    
+                    {/* AI Description Suggestions */}
+                    {question && descriptionSuggestions.length > 0 && (
+                      <div className="mt-3">
+                        <Label className="text-sm font-medium">AI Description Suggestions</Label>
+                        <div className="mt-2 space-y-2">
+                          {descriptionSuggestions.slice(0, 3).map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => handleDescriptionSuggestionClick(suggestion)}
+                              className="w-full text-left p-3 text-sm border rounded-lg hover:bg-muted/50 transition-colors hover:border-primary/50"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          💡 AI-generated suggestions based on your question and token data
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Market Closing Date & Time */}
+                  <div>
+                    <Label>{t("market_closes_label")}</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        {/* Date Selection */}
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Date</Label>
+                          <div className="mt-1">
+                            {/* Fallback date input */}
+                            <Input
+                              type="date"
+                              value={closingDate ? format(closingDate, "yyyy-MM-dd") : ""}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setClosingDate(new Date(e.target.value))
+                                }
+                              }}
+                              min={format(new Date(), "yyyy-MM-dd")}
+                              className="mb-2"
+                            />
+                            
+                            {/* Calendar popover */}
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-start text-left font-normal"
+                                  onClick={() => console.log("Date button clicked")}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {closingDate ? format(closingDate, "MMM dd, yyyy") : "Or use calendar"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar 
+                                  mode="single" 
+                                  selected={closingDate} 
+                                  onSelect={(date) => {
+                                    console.log("Date selected:", date)
+                                    setClosingDate(date)
+                                  }}
+                                  initialFocus
+                                  disabled={(date) => {
+                                    const today = new Date()
+                                    today.setHours(0, 0, 0, 0)
+                                    return date < today
+                                  }}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+
+                        {/* Time Selection */}
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Time (UTC)</Label>
+                          <div className="relative mt-1">
+                            <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type="time"
+                              value={closingTime}
+                              onChange={(e) => setClosingTime(e.target.value)}
+                              className="pl-10"
+                            />
+                          </div>
+                          
+                          {/* Quick Time Presets */}
+                          <div className="mt-2 flex gap-2 flex-wrap">
+                            {[
+                              { label: "End of Day", time: "23:59" },
+                              { label: "Noon", time: "12:00" },
+                              { label: "Midnight", time: "00:00" },
+                              { label: "6 PM", time: "18:00" },
+                            ].map((preset) => (
+                              <button
+                                key={preset.time}
+                                type="button"
+                                onClick={() => setClosingTime(preset.time)}
+                                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                                  closingTime === preset.time
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background hover:bg-muted border-border"
+                                }`}
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Combined Date/Time Display */}
+                      {closingDate && (
+                        <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                          <div className="text-sm font-medium">Market Closes:</div>
+                          <div className="text-sm text-muted-foreground">
+                            {format(getClosingDateTime()!, "PPP 'at' p 'UTC'")}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {(() => {
+                              const now = new Date()
+                              const closing = getClosingDateTime()!
+                              const diffMs = closing.getTime() - now.getTime()
+                              const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+                              const diffHours = Math.ceil(diffMs / (1000 * 60 * 60))
+                              
+                              if (diffDays > 1) {
+                                return `Market will be open for ${diffDays} days`
+                              } else if (diffHours > 1) {
+                                return `Market will be open for ${diffHours} hours`
+                              } else {
+                                return "Market will be open for less than 1 hour"
+                              }
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Validation Error Display */}
+                      {closingDate && validateClosingDateTime() && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="text-sm text-red-600">
+                            ⚠️ {validateClosingDateTime()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Resolution Criteria */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5" />
+                  Resolution Criteria & Process
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium mb-2">How Resolution Works</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Market closes automatically at the specified date and time</li>
+                      <li>Resolution is based on publicly available data from major exchanges</li>
+                      <li>Data sources: CoinGecko, CoinMarketCap, Binance, Coinbase</li>
+                      <li>Outcome is determined within 1 hour of market closing</li>
+                      <li>All participants receive payouts within 24 hours</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">Resolution Criteria</h4>
+                    <div className="text-sm text-muted-foreground space-y-2">
+                      <p><strong>Price-based questions:</strong> Uses closing price from major exchanges</p>
+                      <p><strong>Market cap questions:</strong> Based on circulating supply × closing price</p>
+                      <p><strong>ATH questions:</strong> Compares against all-time high data</p>
+                      <p><strong>Exchange listing:</strong> Official announcements from exchanges</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">Dispute Resolution</h4>
+                    <p className="text-sm text-muted-foreground">
+                      If there's ambiguity, the market will be resolved based on the most conservative interpretation 
+                      using data from at least 3 major sources. Community can appeal within 48 hours of resolution.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Create Button */}
+              <Button
+                onClick={handleCreateMarket}
+                className="w-full py-6 text-lg"
+                disabled={
+                  !selectedAsset || 
+                  !question || 
+                  !description || 
+                  !closingDate || 
+                  isLoading || 
+                  !!validateClosingDateTime()
+                }
+              >
+                {isLoading ? t("creating_market") : t("create_market_button")}
+              </Button>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Token Info Card */}
+              {tokenData && selectedToken && (
+                <TokenInfoCard 
+                  tokenData={tokenData} 
+                  userBalance={selectedToken.balance}
+                />
+              )}
+
+              {/* Loading State */}
+              {isLoadingTokenData && (
+                <Card className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">Loading token data from CoinGecko...</span>
+                  </div>
+                </Card>
+              )}
+
+              {/* Market Preview - Actual Card Size */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">{t("market_preview_title")}</h3>
+                <div className="border border-border rounded-lg p-4 bg-card">
+                  {/* Header with icon and question */}
+                  <div className="flex items-start gap-3 mb-4">
+                    {selectedAsset ? (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                        <Hash className="h-5 w-5 text-white" />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                        <Hash className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {selectedAsset && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                            {selectedAsset}
+                          </span>
+                        )}
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                          ACTIVE
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-card-foreground text-sm leading-tight line-clamp-2">
+                        {question || t("your_question_placeholder")}
+                      </h3>
+                    </div>
+                  </div>
+
+                  {/* Percentage and progress bar */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-2xl font-bold text-green-400">65%</span>
+                      <span className="text-xs text-muted-foreground">Chance</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2 mb-3">
+                      <div className="bg-green-400 h-2 rounded-full transition-all duration-300" style={{ width: "65%" }} />
+                    </div>
+                  </div>
+
+                  {/* Yes/No buttons */}
+                  <div className="flex gap-2 mb-3">
+                    <Button size="sm" className="flex-1 bg-green-200 hover:bg-green-300 text-green-900 dark:bg-green-800/40 dark:hover:bg-green-700/50 dark:text-green-200">
+                      Yes
+                    </Button>
+                    <Button size="sm" className="flex-1 bg-red-200 hover:bg-red-300 text-red-900 dark:bg-red-800/40 dark:hover:bg-red-700/50 dark:text-red-200">
+                      No
+                    </Button>
+                  </div>
+
+                  {/* Volume and closing date */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>$0 Vol</span>
+                    {closingDate && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{format(getClosingDateTime()!, "MMM dd")}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Creator info */}
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
+                    <Users className="h-3 w-3" />
+                    <span>by demo_user</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Tips */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">{t("tips_for_success_title")}</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>Choose popular memecoins for higher trading volume</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>Set clear, measurable outcomes (specific prices, dates)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>Use realistic timeframes (not too short, not too long)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>Provide clear resolution criteria in description</span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+

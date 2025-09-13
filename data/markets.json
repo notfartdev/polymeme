@@ -1,0 +1,86 @@
+[
+  {
+    "id": "market_1757692748099_q9mp98hpd",
+    "asset": "PEPE",
+    "questionType": "yes-no",
+    "question": "Will PEPE 10x to $0.000105 by Q2 2025?",
+    "description": "test",
+    "closingDate": "2025-09-18T04:00:00.000Z",
+    "createdAt": "2025-09-12T15:59:08.099Z",
+    "status": "active",
+    "creator": "demo_user",
+    "tokenMint": "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"
+  },
+  {
+    "id": "market_1757737206504_wwjragjan",
+    "asset": "WIF",
+    "questionType": "yes-no",
+    "question": "Will WIF 10x to $9.623230 by Q2 2025?",
+    "description": "test",
+    "closingDate": "2025-09-18T15:59:00.000Z",
+    "createdAt": "2025-09-13T04:20:06.504Z",
+    "status": "active",
+    "creator": "demo_user",
+    "tokenMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"
+  },
+  {
+    "id": "market_1757740508732_7y9e4k0k5",
+    "asset": "PEPE",
+    "questionType": "yes-no",
+    "question": "Will WIF 10x to $9.623230 by Q2 2025?",
+    "description": "This market will resolve to \"Yes\" if the specified condition is met by the closing date. The outcome will be determined based on publicly available data from major exchanges and official sources.",
+    "closingDate": "2025-10-02T04:00:00.000Z",
+    "createdAt": "2025-09-13T05:15:08.732Z",
+    "status": "active",
+    "creator": "demo_user",
+    "tokenMint": "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"
+  },
+  {
+    "id": "market_1757741629489_34sbyyiy4",
+    "asset": "PEPE",
+    "questionType": "yes-no",
+    "question": "Will PEPE break its ATH of $0.000028 by end of 2024?",
+    "description": "This market will resolve to \"Yes\" if the specified condition is met by the closing date. The outcome will be determined based on publicly available data from major exchanges and official sources.",
+    "closingDate": "2025-09-24T08:00:00.000Z",
+    "createdAt": "2025-09-13T05:33:49.489Z",
+    "status": "active",
+    "creator": "demo_user",
+    "tokenMint": "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"
+  },
+  {
+    "id": "market_1757745177206_65iokphku",
+    "asset": "BONK",
+    "questionType": "yes-no",
+    "question": "Will BONK be listed on Binance by end of 2024?",
+    "description": "This prediction market allows participants to bet on the future performance of BONK. The outcome will be determined using verifiable, publicly available data.",
+    "closingDate": "2025-09-18T15:01:00.000Z",
+    "createdAt": "2025-09-13T06:32:57.206Z",
+    "status": "active",
+    "creator": "demo_user",
+    "tokenMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+  },
+  {
+    "id": "market_1757761598882_pz7t0fvoj",
+    "asset": "PEPE",
+    "questionType": "yes-no",
+    "question": "Will PEPE reach $0.000024 by end of 2024?",
+    "description": "Market resolution will be based on the token's performance against the specified target. Data will be sourced from CoinGecko, CoinMarketCap, and major centralized exchanges.",
+    "closingDate": "2025-09-17T15:59:00.000Z",
+    "createdAt": "2025-09-13T11:06:38.882Z",
+    "status": "active",
+    "creator": "demo_user",
+    "tokenMint": "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"
+  },
+  {
+    "id": "market_1757762775953_1qxtzjsdg",
+    "asset": "PEPE",
+    "questionType": "yes-no",
+    "question": "Will PEPE break its ATH of $0.000028 by end of 2024?",
+    "description": "This market will resolve to \"Yes\" if the specified condition is met by the closing date. The outcome will be determined based on publicly available data from major exchanges and official sources.",
+    "closingDate": "2025-09-18T15:59:00.000Z",
+    "createdAt": "2025-09-13T11:26:15.953Z",
+    "status": "active",
+    "creator": "demo_user",
+    "tokenMint": "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"
+  }
+]
