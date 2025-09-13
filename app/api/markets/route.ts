@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import path from 'path'
+import { supabase } from '@/lib/supabase'
 
 // Types for market creation
 export interface CreateMarketRequest {
@@ -16,6 +15,8 @@ export interface CreateMarketRequest {
   unit?: string
   earliestDate?: string
   latestDate?: string
+  initialBetAmount?: string
+  betSide?: 'yes' | 'no'
 }
 
 export interface MarketResponse {
@@ -36,36 +37,12 @@ export interface MarketResponse {
   unit?: string
   earliestDate?: string
   latestDate?: string
-}
-
-// File-based storage for demo purposes
-const DATA_FILE = path.join(process.cwd(), 'data', 'markets.json')
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.dirname(DATA_FILE)
-  try {
-    await fs.access(dataDir)
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true })
-  }
-}
-
-// Load markets from file
-async function loadMarkets(): Promise<MarketResponse[]> {
-  try {
-    await ensureDataDir()
-    const data = await fs.readFile(DATA_FILE, 'utf-8')
-    return JSON.parse(data)
-  } catch {
-    return []
-  }
-}
-
-// Save markets to file
-async function saveMarkets(markets: MarketResponse[]): Promise<void> {
-  await ensureDataDir()
-  await fs.writeFile(DATA_FILE, JSON.stringify(markets, null, 2))
+  // Betting fields
+  initialBetAmount?: string
+  betSide?: 'yes' | 'no'
+  totalYesBets?: number
+  totalNoBets?: number
+  totalVolume?: number
 }
 
 export async function POST(request: NextRequest) {
@@ -102,33 +79,70 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Load existing markets
-    const markets = await loadMarkets()
-
-    // Create new market
-    const newMarket: MarketResponse = {
-      id: `market_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    // Create new market data for Supabase
+    const marketData = {
       asset: body.asset,
-      questionType: body.questionType,
+      question_type: body.questionType,
       question: body.question,
       description: body.description,
-      closingDate: body.closingDate,
-      createdAt: new Date().toISOString(),
+      closing_date: body.closingDate,
       status: 'active',
       creator: 'demo_user', // In production, this would come from authentication
-      tokenMint: body.tokenMint, // SPL token mint address
+      token_mint: body.tokenMint,
       // Type-specific fields
-      ...(body.multipleChoiceOptions && { multipleChoiceOptions: body.multipleChoiceOptions }),
-      ...(body.minValue && { minValue: body.minValue }),
-      ...(body.maxValue && { maxValue: body.maxValue }),
-      ...(body.unit && { unit: body.unit }),
-      ...(body.earliestDate && { earliestDate: body.earliestDate }),
-      ...(body.latestDate && { latestDate: body.latestDate }),
+      multiple_choice_options: body.multipleChoiceOptions,
+      min_value: body.minValue,
+      max_value: body.maxValue,
+      unit: body.unit,
+      earliest_date: body.earliestDate,
+      latest_date: body.latestDate,
+      // Betting fields
+      initial_bet_amount: body.initialBetAmount,
+      bet_side: body.betSide,
+      total_yes_bets: 0,
+      total_no_bets: 0,
+      total_volume: 0
     }
 
-    // Store the market
-    markets.push(newMarket)
-    await saveMarkets(markets)
+    // Insert into Supabase
+    const { data, error } = await supabase
+      .from('markets')
+      .insert([marketData])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Supabase error:', error)
+      return NextResponse.json(
+        { error: 'Database error' },
+        { status: 500 }
+      )
+    }
+
+    // Transform data back to API format
+    const newMarket: MarketResponse = {
+      id: data.id,
+      asset: data.asset,
+      questionType: data.question_type,
+      question: data.question,
+      description: data.description,
+      closingDate: data.closing_date,
+      createdAt: data.created_at,
+      status: data.status,
+      creator: data.creator,
+      tokenMint: data.token_mint,
+      multipleChoiceOptions: data.multiple_choice_options,
+      minValue: data.min_value,
+      maxValue: data.max_value,
+      unit: data.unit,
+      earliestDate: data.earliest_date,
+      latestDate: data.latest_date,
+      initialBetAmount: data.initial_bet_amount,
+      betSide: data.bet_side,
+      totalYesBets: data.total_yes_bets,
+      totalNoBets: data.total_no_bets,
+      totalVolume: data.total_volume
+    }
 
     return NextResponse.json(newMarket, { status: 201 })
   } catch (error) {
@@ -142,7 +156,45 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const markets = await loadMarkets()
+    // Fetch markets from Supabase
+    const { data, error } = await supabase
+      .from('markets')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Supabase error:', error)
+      return NextResponse.json(
+        { error: 'Database error' },
+        { status: 500 }
+      )
+    }
+
+    // Transform data to API format
+    const markets: MarketResponse[] = data.map(market => ({
+      id: market.id,
+      asset: market.asset,
+      questionType: market.question_type,
+      question: market.question,
+      description: market.description,
+      closingDate: market.closing_date,
+      createdAt: market.created_at,
+      status: market.status,
+      creator: market.creator,
+      tokenMint: market.token_mint,
+      multipleChoiceOptions: market.multiple_choice_options,
+      minValue: market.min_value,
+      maxValue: market.max_value,
+      unit: market.unit,
+      earliestDate: market.earliest_date,
+      latestDate: market.latest_date,
+      initialBetAmount: market.initial_bet_amount,
+      betSide: market.bet_side,
+      totalYesBets: market.total_yes_bets,
+      totalNoBets: market.total_no_bets,
+      totalVolume: market.total_volume
+    }))
+
     return NextResponse.json(markets, { status: 200 })
   } catch (error) {
     console.error('Error fetching markets:', error)

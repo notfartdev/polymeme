@@ -40,7 +40,7 @@ const getSmartSuggestions = (tokenData: TokenData | null, tokenSymbol: string) =
       `Will ${tokenSymbol} pump 100%+ in the next 30 days?`,
     ]
   }
-
+  
   const suggestions = []
   const currentPrice = tokenData.current_price
   const ath = tokenData.ath
@@ -266,7 +266,7 @@ export default function CreateMarketPage() {
       setCheckingDuplicates(true)
       checkDuplicateMarkets(question).then(markets => {
         setDuplicateMarkets(markets)
-        setCheckingDuplicates(false)
+          setCheckingDuplicates(false)
       })
     } else {
       setDuplicateMarkets([])
@@ -611,39 +611,39 @@ export default function CreateMarketPage() {
                       <p className="text-muted-foreground">Choose a memecoin or token from your wallet to create a market about</p>
                     </div>
                     
-                    <Select value={selectedAsset} onValueChange={handleAssetChange} disabled={isLoadingTokenData}>
+                <Select value={selectedAsset} onValueChange={handleAssetChange} disabled={isLoadingTokenData}>
                       <SelectTrigger className="h-12">
                         <SelectValue placeholder={isLoadingTokenData ? "Loading token data..." : "Select a token from your wallet"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {walletAssets.map((asset) => (
-                          <SelectItem key={asset.symbol} value={asset.symbol}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
-                                <span className="text-xs font-bold">{asset.symbol.slice(0, 2)}</span>
-                              </div>
-                              <div>
-                                <span className="font-medium">{asset.symbol}</span>
-                                <span className="text-muted-foreground ml-2">({asset.balance.toLocaleString()})</span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {walletAssets.map((asset) => (
+                      <SelectItem key={asset.symbol} value={asset.symbol}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
+                            <span className="text-xs font-bold">{asset.symbol.slice(0, 2)}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium">{asset.symbol}</span>
+                            <span className="text-muted-foreground ml-2">({asset.balance.toLocaleString()})</span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                    {selectedAsset && (
+              {selectedAsset && (
                       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-2 text-green-800">
                           <CheckCircle className="h-4 w-4" />
                           <span className="font-medium">Selected: {selectedAsset}</span>
-                        </div>
+                    </div>
                         <p className="text-sm text-green-600 mt-1">
                           You have {selectedToken?.balance.toLocaleString()} {selectedAsset} available for betting
                         </p>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                                )}
+                              </div>
                 )}
 
                 {currentStep === 3 && (
@@ -654,15 +654,15 @@ export default function CreateMarketPage() {
                       </div>
                       <h2 className="text-2xl font-bold mb-2">Write Your Question</h2>
                       <p className="text-muted-foreground">Create a yes/no question about {selectedAsset}</p>
-                    </div>
+                      </div>
                     
-                    <div className="space-y-4">
-                      <div>
+                <div className="space-y-4">
+                  <div>
                         <Label htmlFor="question">Your Question</Label>
-                        <Input
-                          id="question"
-                          value={question}
-                          onChange={(e) => setQuestion(e.target.value)}
+                    <Input
+                      id="question"
+                      value={question}
+                      onChange={(e) => setQuestion(e.target.value)}
                           placeholder={`Will ${selectedAsset} reach $0.01 by end of 2024?`}
                           className="h-12"
                         />
@@ -678,31 +678,31 @@ export default function CreateMarketPage() {
                                   }`}
                                 />
                               ))}
-                            </div>
+                        </div>
                             <span className="text-sm font-medium">{questionClarity}/10</span>
-                          </div>
-                        )}
                       </div>
+                    )}
+                        </div>
 
                       {questionSuggestions.length > 0 && (
-                        <div>
+                    <div>
                           <Label className="text-sm font-medium">AI Suggestions</Label>
-                          <div className="mt-2 space-y-2">
+                      <div className="mt-2 space-y-2">
                             {questionSuggestions.slice(0, 3).map((suggestion, index) => (
-                              <button
-                                key={index}
+                          <button
+                            key={index}
                                 onClick={() => setQuestion(suggestion)}
                                 className="w-full p-3 text-left text-sm bg-muted/50 hover:bg-muted rounded-lg transition-colors"
-                              >
-                                {suggestion}
-                              </button>
-                            ))}
-                          </div>
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                    </div>
+                  )}
 
                 {currentStep === 4 && (
                   <div className="space-y-6">
@@ -715,12 +715,12 @@ export default function CreateMarketPage() {
                     </div>
                     
                     <div className="space-y-4">
-                      <div>
+                  <div>
                         <Label htmlFor="description">Market Description</Label>
-                        <Textarea
-                          id="description"
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
+                    <Textarea
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
                           placeholder="This market will resolve to 'Yes' if the specified condition is met by the closing date..."
                           className="min-h-24"
                         />
@@ -739,20 +739,20 @@ export default function CreateMarketPage() {
                       {descriptionSuggestions.length > 0 && (
                         <div>
                           <Label className="text-sm font-medium">AI Suggestions</Label>
-                          <div className="mt-2 space-y-2">
+                        <div className="mt-2 space-y-2">
                             {descriptionSuggestions.slice(0, 2).map((suggestion, index) => (
-                              <button
-                                key={index}
+                            <button
+                              key={index}
                                 onClick={() => setDescription(suggestion)}
                                 className="w-full p-3 text-left text-sm bg-muted/50 hover:bg-muted rounded-lg transition-colors"
-                              >
-                                {suggestion}
-                              </button>
-                            ))}
-                          </div>
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
+                  </div>
                   </div>
                 )}
 
@@ -770,64 +770,64 @@ export default function CreateMarketPage() {
                       <div>
                         <Label htmlFor="closingDate">Closing Date</Label>
                         <div className="relative" ref={calendarRef}>
-                          <Button
-                            variant="outline"
+                                <Button
+                                  variant="outline"
                             className="w-full justify-start text-left font-normal h-12"
                             type="button"
                             onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
                             {closingDate ? format(closingDate, "PPP") : "Pick a date"}
-                          </Button>
+                                </Button>
                           {isCalendarOpen && (
                             <div className="absolute top-full left-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
-                              <Calendar
-                                mode="single"
-                                selected={closingDate}
-                                onSelect={(date) => {
-                                  setClosingDate(date)
+                                <Calendar 
+                                  mode="single" 
+                                  selected={closingDate} 
+                                  onSelect={(date) => {
+                                    setClosingDate(date)
                                   setIsCalendarOpen(false)
-                                }}
+                                  }}
                                 disabled={(date) => date < new Date()}
-                                initialFocus
-                              />
+                                  initialFocus
+                                />
                             </div>
                           )}
+                          </div>
                         </div>
-                      </div>
-                      
-                      <div>
+
+                        <div>
                         <Label htmlFor="closingTime">Closing Time</Label>
-                        <Input
+                            <Input
                           id="closingTime"
-                          type="time"
-                          value={closingTime}
-                          onChange={(e) => setClosingTime(e.target.value)}
+                              type="time"
+                              value={closingTime}
+                              onChange={(e) => setClosingTime(e.target.value)}
                           className="h-12"
                         />
+                        </div>
                       </div>
-                    </div>
 
                     {validateClosingDateTime() && (
                       <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-600">{validateClosingDateTime()}</p>
-                      </div>
+                          </div>
                     )}
-                  </div>
-                )}
+                        </div>
+                      )}
 
                 {currentStep === 6 && (
                   <div className="space-y-6">
                     <div className="text-center">
                       <div className="w-12 h-12 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mb-4">
                         <CheckCircle className="h-6 w-6 text-white" />
-                      </div>
+                          </div>
                       <h2 className="text-2xl font-bold mb-2">Review & Create Market</h2>
                       <p className="text-muted-foreground">Place your initial bet and create your market</p>
-                    </div>
+                        </div>
                     
-                    <div className="space-y-4">
-                      <div>
+                <div className="space-y-4">
+                  <div>
                         <Label htmlFor="initialBetAmount">Initial Bet Amount ({selectedAsset})</Label>
                         <Input
                           id="initialBetAmount"
@@ -850,16 +850,16 @@ export default function CreateMarketPage() {
                                 <span className="text-lg font-bold text-blue-900">
                                   ${(parseFloat(initialBetAmount) * tokenData.current_price).toFixed(2)}
                                 </span>
-                              </div>
+                  </div>
                               <div className="text-xs text-blue-600 mt-1">
                                 @ ${tokenData.current_price.toFixed(6)} per {selectedAsset}
                               </div>
                             </div>
                           )}
-                        </div>
-                      </div>
-
-                      <div>
+                    </div>
+                  </div>
+                  
+                  <div>
                         <Label>Bet Side</Label>
                         <RadioGroup value={betSide} onValueChange={(value: "yes" | "no") => setBetSide(value)} className="grid grid-cols-2 gap-4 mt-3">
                           <div className={`relative cursor-pointer transition-all duration-200 ${
@@ -890,8 +890,8 @@ export default function CreateMarketPage() {
                                     I believe this will happen
                                   </p>
                                 </Label>
-                              </div>
-                            </div>
+                  </div>
+                </div>
                             <RadioGroupItem value="yes" id="bet-yes" className="absolute inset-0 opacity-0 cursor-pointer" />
                           </div>
 
@@ -910,7 +910,7 @@ export default function CreateMarketPage() {
                                   {betSide === 'no' && (
                                     <div className="w-2 h-2 rounded-full bg-white"></div>
                                   )}
-                                </div>
+                    </div>
                                 <Label htmlFor="bet-no" className="cursor-pointer flex-1">
                                   <div className="flex items-center gap-2">
                                     <span className={`text-lg font-bold ${
@@ -918,19 +918,19 @@ export default function CreateMarketPage() {
                                     }`}>
                                       NO
                                     </span>
-                                  </div>
+                    </div>
                                   <p className="text-sm text-muted-foreground mt-1">
                                     I believe this won't happen
                                   </p>
                                 </Label>
-                              </div>
-                            </div>
+                    </div>
+                    </div>
                             <RadioGroupItem value="no" id="bet-no" className="absolute inset-0 opacity-0 cursor-pointer" />
-                          </div>
+                    </div>
                         </RadioGroup>
-                      </div>
                     </div>
                   </div>
+                </div>
                 )}
 
                 {/* Navigation Buttons */}
@@ -955,31 +955,31 @@ export default function CreateMarketPage() {
                       {isAnimating ? "..." : "Next →"}
                     </Button>
                   ) : (
-                    <Button
-                      onClick={handleCreateMarket}
-                      disabled={
-                        !selectedAsset || 
-                        !question || 
-                        !description || 
-                        !closingDate || 
-                        !initialBetAmount ||
-                        parseFloat(initialBetAmount || "0") <= 0 ||
-                        isLoading || 
-                        !!validateClosingDateTime()
-                      }
+                <Button
+                  onClick={handleCreateMarket}
+                  disabled={
+                    !selectedAsset || 
+                    !question || 
+                    !description || 
+                    !closingDate || 
+                    !initialBetAmount ||
+                    parseFloat(initialBetAmount || "0") <= 0 ||
+                    isLoading || 
+                    !!validateClosingDateTime()
+                  }
                       className="flex-1 bg-green-600 hover:bg-green-700"
-                    >
+                >
                       {isLoading ? "Creating Market..." : "Create Market"}
-                    </Button>
+                </Button>
                   )}
-                </div>
+              </div>
               </Card>
             </div>
 
             {/* Market Preview - Always Visible */}
             <div className="space-y-6">
               {/* Market Preview Card */}
-              <Card className="p-6">
+                <Card className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Market Preview</h3>
                 <div className="border border-border rounded-lg p-4 bg-card">
                   {/* Header with icon and question */}
@@ -1040,15 +1040,15 @@ export default function CreateMarketPage() {
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" className="flex-1 bg-green-100 text-green-700 hover:bg-green-200">
-                        Yes
-                      </Button>
+                      Yes
+                    </Button>
                       <Button size="sm" className="flex-1 bg-red-100 text-red-700 hover:bg-red-200">
-                        No
-                      </Button>
-                    </div>
+                      No
+                    </Button>
+                  </div>
                     <div className="text-xs text-muted-foreground text-center">
                       {initialBetAmount ? `Initial bet: ${initialBetAmount} ${selectedAsset}` : 'No initial bet set'}
-                    </div>
+                      </div>
                   </div>
                 </div>
               </Card>
@@ -1088,7 +1088,7 @@ export default function CreateMarketPage() {
                         }`}>
                           {tokenData.price_change_percentage_24h >= 0 ? '+' : ''}
                           {tokenData.price_change_percentage_24h.toFixed(2)}% (24h)
-                        </div>
+                    </div>
                       )}
                     </div>
 
@@ -1097,35 +1097,35 @@ export default function CreateMarketPage() {
                       <div className="text-sm text-muted-foreground mb-1">Market Cap</div>
                       <div className="text-lg font-bold">
                         ${tokenData.market_cap ? (tokenData.market_cap / 1e9).toFixed(2) + 'B' : 'N/A'}
-                      </div>
+                  </div>
                       {tokenData.market_cap_rank && (
                         <div className="text-sm text-muted-foreground">
                           Rank #{tokenData.market_cap_rank}
-                        </div>
+                  </div>
                       )}
-                    </div>
+                  </div>
 
                     {/* Volume */}
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <div className="text-sm text-muted-foreground mb-1">24h Volume</div>
                       <div className="text-lg font-bold">
                         ${tokenData.total_volume ? (tokenData.total_volume / 1e6).toFixed(1) + 'M' : 'N/A'}
-                      </div>
-                    </div>
+                  </div>
+                </div>
 
                     {/* ATH */}
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <div className="text-sm text-muted-foreground mb-1">All-Time High</div>
                       <div className="text-lg font-bold">
                         ${tokenData.ath?.toFixed(6) || 'N/A'}
-                      </div>
+            </div>
                       {tokenData.ath_date && (
                         <div className="text-sm text-muted-foreground">
                           {new Date(tokenData.ath_date).toLocaleDateString()}
-                        </div>
+          </div>
                       )}
-                    </div>
-                  </div>
+        </div>
+      </div>
 
                   {/* Social & Community Stats */}
                   <div className="mt-4 grid grid-cols-1 gap-3">
@@ -1145,7 +1145,7 @@ export default function CreateMarketPage() {
                         <div className="flex items-center gap-2">
                           <Twitter className="h-4 w-4 text-blue-500" />
                           <span className="text-sm text-muted-foreground">Twitter</span>
-                        </div>
+              </div>
                         <a 
                           href={`https://twitter.com/${tokenData.twitter_username}`} 
                           target="_blank" 
@@ -1162,14 +1162,14 @@ export default function CreateMarketPage() {
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-blue-500" />
                           <span className="text-sm text-muted-foreground">Twitter Followers</span>
-                        </div>
+                </div>
                         <span className="font-medium">
                           {tokenData.twitter_followers >= 1000 ? 
                             (tokenData.twitter_followers / 1000).toFixed(1) + 'K' : 
                             tokenData.twitter_followers.toLocaleString()
                           }
                         </span>
-                      </div>
+              </div>
                     )}
                     
                     {tokenData.reddit_subscribers && tokenData.reddit_subscribers > 0 && (
@@ -1200,7 +1200,7 @@ export default function CreateMarketPage() {
                         >
                           Visit Site
                         </a>
-                      </div>
+                    </div>
                     )}
 
                     {tokenData.telegram_channel && (
@@ -1217,7 +1217,7 @@ export default function CreateMarketPage() {
                         >
                           Join Channel
                         </a>
-                      </div>
+                    </div>
                     )}
 
                     {/* Show supply data only if available */}
@@ -1227,7 +1227,7 @@ export default function CreateMarketPage() {
                         <span className="font-medium">
                           {(tokenData.circulating_supply / 1e9).toFixed(2)}B
                         </span>
-                      </div>
+                    </div>
                     )}
 
                     {(tokenData.total_supply && tokenData.total_supply > 0) && (
@@ -1236,7 +1236,7 @@ export default function CreateMarketPage() {
                         <span className="font-medium">
                           {(tokenData.total_supply / 1e9).toFixed(2)}B
                         </span>
-                      </div>
+                    </div>
                     )}
 
                     {(tokenData.max_supply && tokenData.max_supply > 0) && (
@@ -1247,7 +1247,7 @@ export default function CreateMarketPage() {
                         </span>
                       </div>
                     )}
-                  </div>
+                </div>
 
                 </Card>
               )}
@@ -1310,13 +1310,13 @@ export default function CreateMarketPage() {
           </DialogHeader>
           
           {createdMarketData && (
-            <div className="text-center">
-              <Button
-                onClick={handleCloseModal}
+                <div className="text-center">
+                  <Button
+                    onClick={handleCloseModal}
                 className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
-              >
-                View Market
-              </Button>
+                  >
+                    View Market
+                  </Button>
             </div>
           )}
         </DialogContent>
