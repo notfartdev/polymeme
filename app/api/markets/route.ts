@@ -9,6 +9,9 @@ export interface CreateMarketRequest {
   description: string
   closingDate: string
   tokenMint?: string // SPL token mint address for smart contract
+  tokenSymbol?: string // Token symbol (e.g., SOL, WIF, BONK)
+  tokenName?: string // Token name (e.g., Solana, dogwifhat, Bonk)
+  tokenLogo?: string // Token logo URL
   creatorWalletAddress?: string // Wallet address of the creator
   multipleChoiceOptions?: string[]
   minValue?: string
@@ -116,6 +119,9 @@ export async function POST(request: NextRequest) {
       creator_wallet_address: body.creatorWalletAddress,
       creator_user_id: creatorUserId,
       token_mint: body.tokenMint,
+      token_symbol: body.tokenSymbol,
+      token_name: body.tokenName,
+      token_logo: body.tokenLogo,
       // Type-specific fields
       multiple_choice_options: body.multipleChoiceOptions,
       min_value: body.minValue,

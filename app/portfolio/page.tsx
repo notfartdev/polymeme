@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
@@ -20,74 +20,71 @@ import Header from "@/components/header"
 import { useI18n } from "@/lib/i18n"
 import { useWalletAssets } from "@/hooks/use-wallet-assets"
 import { useWallet } from '@solana/wallet-adapter-react'
+import { WalletGuard } from '@/components/wallet-guard'
 
-// Mock wallet data
-const walletData = {
-  address: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgHkv",
-  balance: 2847.32,
-  connected: true,
-  assets: [
-    { symbol: "SOL", name: "Solana", amount: 12.45, value: 1847.32, change: 5.2, logo: "/solana-logo.png" },
-    { symbol: "BONK", name: "Bonk", amount: 1000000, value: 450.0, change: -2.1, logo: "/bonk-logo.png" },
-    { symbol: "WIF", name: "dogwifhat", amount: 2500, value: 350.0, change: 12.5, logo: "/wif-logo.png" },
-    { symbol: "PEPE", name: "Pepe", amount: 50000, value: 200.0, change: -8.3, logo: "/pepe-logo.png" },
-  ],
+// Types for real data
+interface UserStats {
+  userId: string
+  walletAddress: string
+  totalMarketsCreated: number
+  totalBets: number
+  totalVolume: number
+  totalPnL: number
+  winRate: number
+  activePositions: number
+  bestTrade: number
+  worstTrade: number
+  avgTrade: number
+  totalTrades: number
+  isActiveTrader: boolean
+  hasWinningRecord: boolean
 }
 
-// Mock trading activity
-const tradingActivity = [
-  {
-    id: 1,
-    market: "Fed decision in September?",
-    position: "Yes - 25 bps decrease",
-    amount: 500,
-    outcome: "won",
-    pnl: 125.5,
-    date: "2025-09-12",
-    status: "settled",
-  },
-  {
-    id: 2,
-    market: "New York City Mayoral Election",
-    position: "Yes - Zohran Mamdani",
-    amount: 300,
-    outcome: "pending",
-    pnl: 0,
-    date: "2025-09-10",
-    status: "active",
-  },
-  {
-    id: 3,
-    market: "Will Russia invade a NATO country?",
-    position: "No",
-    amount: 200,
-    outcome: "lost",
-    pnl: -200,
-    date: "2025-09-08",
-    status: "settled",
-  },
-  {
-    id: 4,
-    market: "Boxing: Canelo vs Crawford",
-    position: "Yes - Canelo",
-    amount: 150,
-    outcome: "won",
-    pnl: 87.3,
-    date: "2025-09-05",
-    status: "settled",
-  },
-]
+interface TradingActivity {
+  id: string
+  marketId: string
+  marketTitle: string
+  marketDescription: string
+  betSide: string
+  amount: number
+  tokenMint: string
+  tokenAmount: number
+  outcome: string
+  pnl: number
+  status: string
+  createdAt: string
+  settledAt: string | null
+  isWinning: boolean
+  isLosing: boolean
+  isPending: boolean
+  isActive: boolean
+  isSettled: boolean
+  createdDate: string
+  settledDate: string | null
+}
 
-// Mock performance stats
-const performanceStats = {
-  totalPnL: 312.8,
-  winRate: 67,
-  totalTrades: 24,
-  activePositions: 3,
-  totalVolume: 4850.0,
-  bestTrade: 225.5,
-  worstTrade: -200.0,
-  avgTrade: 13.03,
+interface PerformanceData {
+  totalVolume: number
+  totalPnL: number
+  winRate: number
+  totalTrades: number
+  activePositions: number
+  bestTrade: number
+  worstTrade: number
+  avgTrade: number
+  monthlyPnL: number
+  monthlyTrades: number
+  monthlyWinRate: number
+  weeklyPnL: number
+  weeklyTrades: number
+  profitMargin: number
+  riskRewardRatio: number
+  isProfitable: boolean
+  isConsistent: boolean
+  isActive: boolean
+  totalMarketsCreated: number
+  performanceGrade: string
+  riskLevel: string
 }
 
 export default function PortfolioPage() {
@@ -96,6 +93,83 @@ export default function PortfolioPage() {
   const { assets, loading, error, totalValue, totalChange, refetch } = useWalletAssets()
   const [selectedTab, setSelectedTab] = useState("overview")
   const [twitterConnected, setTwitterConnected] = useState(false)
+  
+  // Real data state
+  const [userStats, setUserStats] = useState<UserStats | null>(null)
+  const [tradingActivity, setTradingActivity] = useState<TradingActivity[]>([])
+  const [performanceData, setPerformanceData] = useState<PerformanceData | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [activityLoading, setActivityLoading] = useState(false)
+  const [performanceLoading, setPerformanceLoading] = useState(false)
+
+  // Fetch user stats
+  const fetchUserStats = async () => {
+    if (!publicKey) return
+    
+    setStatsLoading(true)
+    try {
+      const response = await fetch(`/api/users/${publicKey.toString()}/stats`)
+      if (response.ok) {
+        const data = await response.json()
+        setUserStats(data)
+      } else {
+        console.error('Failed to fetch user stats')
+      }
+    } catch (error) {
+      console.error('Error fetching user stats:', error)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  // Fetch trading activity
+  const fetchTradingActivity = async () => {
+    if (!publicKey) return
+    
+    setActivityLoading(true)
+    try {
+      const response = await fetch(`/api/users/${publicKey.toString()}/activity`)
+      if (response.ok) {
+        const data = await response.json()
+        setTradingActivity(data.activity || [])
+      } else {
+        console.error('Failed to fetch trading activity')
+      }
+    } catch (error) {
+      console.error('Error fetching trading activity:', error)
+    } finally {
+      setActivityLoading(false)
+    }
+  }
+
+  // Fetch performance data
+  const fetchPerformanceData = async () => {
+    if (!publicKey) return
+    
+    setPerformanceLoading(true)
+    try {
+      const response = await fetch(`/api/users/${publicKey.toString()}/performance`)
+      if (response.ok) {
+        const data = await response.json()
+        setPerformanceData(data)
+      } else {
+        console.error('Failed to fetch performance data')
+      }
+    } catch (error) {
+      console.error('Error fetching performance data:', error)
+    } finally {
+      setPerformanceLoading(false)
+    }
+  }
+
+  // Fetch all data when wallet connects
+  useEffect(() => {
+    if (publicKey && connected) {
+      fetchUserStats()
+      fetchTradingActivity()
+      fetchPerformanceData()
+    }
+  }, [publicKey, connected])
 
   const copyAddress = () => {
     if (publicKey) {
@@ -104,10 +178,11 @@ export default function PortfolioPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <WalletGuard>
+      <div className="min-h-screen bg-background">
+        <Header />
 
-      <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-6">
         {/* Portfolio Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-foreground">{t("portfolio_heading")}</h1>
@@ -157,8 +232,8 @@ export default function PortfolioPage() {
               <span className="text-sm text-muted-foreground">{t("total_pnl_label")}</span>
               <Trophy className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className={`text-2xl font-bold ${performanceStats.totalPnL >= 0 ? "text-green-600" : "text-red-600"}`}>
-              {performanceStats.totalPnL >= 0 ? "+" : ""}${performanceStats.totalPnL.toFixed(2)}
+            <div className={`text-2xl font-bold ${(userStats?.totalPnL || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+              {statsLoading ? 'Loading...' : `${(userStats?.totalPnL || 0) >= 0 ? "+" : ""}$${(userStats?.totalPnL || 0).toFixed(2)}`}
             </div>
             <div className="text-sm text-muted-foreground">{t("all_time")}</div>
           </Card>
@@ -168,8 +243,8 @@ export default function PortfolioPage() {
               <span className="text-sm text-muted-foreground">{t("win_rate")}</span>
               <Target className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="text-2xl font-bold">{performanceStats.winRate}%</div>
-            <div className="text-sm text-muted-foreground">{performanceStats.totalTrades} {t("trades_suffix")}</div>
+            <div className="text-2xl font-bold">{statsLoading ? 'Loading...' : `${(userStats?.winRate || 0).toFixed(1)}%`}</div>
+            <div className="text-sm text-muted-foreground">{userStats?.totalTrades || 0} {t("trades_suffix")}</div>
           </Card>
 
           <Card className="p-6">
@@ -177,7 +252,7 @@ export default function PortfolioPage() {
               <span className="text-sm text-muted-foreground">{t("active_positions")}</span>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="text-2xl font-bold">{performanceStats.activePositions}</div>
+            <div className="text-2xl font-bold">{statsLoading ? 'Loading...' : (userStats?.activePositions || 0)}</div>
             <div className="text-sm text-muted-foreground">{t("markets_suffix")}</div>
           </Card>
         </div>
@@ -233,20 +308,34 @@ export default function PortfolioPage() {
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">{t("recent_activity")}</h3>
               <div className="space-y-3">
-                {tradingActivity.slice(0, 3).map((trade) => (
-                  <div key={trade.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                    <div>
-                      <div className="font-medium text-sm">{trade.market}</div>
-                      <div className="text-xs text-muted-foreground">{trade.position}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`font-semibold ${trade.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{trade.date}</div>
-                    </div>
+                {activityLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span className="ml-2 text-sm">Loading activity...</span>
                   </div>
-                ))}
+                ) : tradingActivity.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p className="text-sm">No trading activity yet</p>
+                    <p className="text-xs">Start betting to see your activity here</p>
+                  </div>
+                ) : (
+                  tradingActivity.slice(0, 3).map((trade) => (
+                    <div key={trade.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                      <div>
+                        <div className="font-medium text-sm">{trade.marketTitle}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {trade.betSide === 'yes' ? 'Yes' : 'No'} - ${trade.amount.toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`font-semibold ${trade.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{trade.createdDate}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
 
@@ -283,9 +372,9 @@ export default function PortfolioPage() {
                       </div>
                       <div className="text-right">
                         <div className="font-semibold">
-                          {asset.value ? `$${asset.value.toFixed(2)}` : 'N/A'}
+                          {asset.value && asset.value > 0 ? `$${asset.value.toFixed(2)}` : '$0.00'}
                         </div>
-                        {asset.change24h !== undefined && (
+                        {asset.change24h !== undefined && asset.change24h !== 0 && (
                           <div className={`text-xs ${asset.change24h >= 0 ? "text-green-600" : "text-red-600"}`}>
                             {asset.change24h >= 0 ? "+" : ""}
                             {asset.change24h.toFixed(2)}%
@@ -347,12 +436,12 @@ export default function PortfolioPage() {
                     </div>
                     <div className="text-right">
                       <div className="font-semibold">
-                        {asset.value ? `$${asset.value.toFixed(2)}` : 'N/A'}
+                        {asset.value && asset.value > 0 ? `$${asset.value.toFixed(2)}` : '$0.00'}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {asset.balance.toLocaleString(undefined, { maximumFractionDigits: 6 })} {asset.symbol}
                       </div>
-                      {asset.change24h !== undefined && (
+                      {asset.change24h !== undefined && asset.change24h !== 0 && (
                         <div className={`text-sm ${asset.change24h >= 0 ? "text-green-600" : "text-red-600"}`}>
                           {asset.change24h >= 0 ? "+" : ""}
                           {asset.change24h.toFixed(2)}%
@@ -369,60 +458,135 @@ export default function PortfolioPage() {
         {selectedTab === "activity" && (
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">{t("trading_activity")}</h3>
-            <div className="space-y-3">
-              {tradingActivity.map((trade) => (
-                <div key={trade.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                  <div className="flex-1">
-                    <div className="font-medium">{trade.market}</div>
-                    <div className="text-sm text-muted-foreground">{trade.position}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          trade.status === "active"
-                            ? "bg-blue-100 text-blue-700"
-                            : trade.outcome === "won"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {trade.status === "active" ? t("active") : trade.outcome === "won" ? t("won") : t("lost")}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{trade.date}</span>
+            {activityLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin" />
+                <span className="ml-2">Loading trading activity...</span>
+              </div>
+            ) : tradingActivity.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-lg">No trading activity yet</p>
+                <p className="text-sm">Start betting on markets to see your activity here</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tradingActivity.map((trade) => (
+                  <div key={trade.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                    <div className="flex-1">
+                      <div className="font-medium">{trade.marketTitle}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {trade.betSide === 'yes' ? 'Yes' : 'No'} - ${trade.amount.toFixed(2)}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            trade.isActive
+                              ? "bg-blue-100 text-blue-700"
+                              : trade.isWinning
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {trade.isActive ? t("active") : trade.isWinning ? t("won") : t("lost")}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{trade.createdDate}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">${trade.amount.toFixed(2)}</div>
+                      <div className={`font-semibold ${trade.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {trade.isActive ? t("pending") : `${trade.pnl >= 0 ? "+" : ""}$${trade.pnl.toFixed(2)}`}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">${trade.amount}</div>
-                    <div className={`font-semibold ${trade.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {trade.status === "active" ? t("pending") : `${trade.pnl >= 0 ? "+" : ""}$${trade.pnl.toFixed(2)}`}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         )}
 
         {selectedTab === "performance" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground mb-2">Total Volume</div>
-              <div className="text-2xl font-bold">${performanceStats.totalVolume.toLocaleString()}</div>
-            </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground mb-2">Best Trade</div>
-              <div className="text-2xl font-bold text-green-600">+${performanceStats.bestTrade}</div>
-            </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground mb-2">Worst Trade</div>
-              <div className="text-2xl font-bold text-red-600">${performanceStats.worstTrade}</div>
-            </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground mb-2">Avg Trade</div>
-              <div className="text-2xl font-bold">${performanceStats.avgTrade}</div>
-            </Card>
+          <div className="space-y-6">
+            {performanceLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin" />
+                <span className="ml-2">Loading performance data...</span>
+              </div>
+            ) : (
+              <>
+                {/* Main Performance Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card className="p-6">
+                    <div className="text-sm text-muted-foreground mb-2">Total Volume</div>
+                    <div className="text-2xl font-bold">${(performanceData?.totalVolume || 0).toLocaleString()}</div>
+                  </Card>
+                  <Card className="p-6">
+                    <div className="text-sm text-muted-foreground mb-2">Best Trade</div>
+                    <div className="text-2xl font-bold text-green-600">+${(performanceData?.bestTrade || 0).toFixed(2)}</div>
+                  </Card>
+                  <Card className="p-6">
+                    <div className="text-sm text-muted-foreground mb-2">Worst Trade</div>
+                    <div className="text-2xl font-bold text-red-600">${(performanceData?.worstTrade || 0).toFixed(2)}</div>
+                  </Card>
+                  <Card className="p-6">
+                    <div className="text-sm text-muted-foreground mb-2">Avg Trade</div>
+                    <div className="text-2xl font-bold">${(performanceData?.avgTrade || 0).toFixed(2)}</div>
+                  </Card>
+                </div>
+
+                {/* Additional Performance Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Card className="p-6">
+                    <div className="text-sm text-muted-foreground mb-2">Monthly P&L</div>
+                    <div className={`text-2xl font-bold ${(performanceData?.monthlyPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${(performanceData?.monthlyPnL || 0).toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Last 30 days</div>
+                  </Card>
+                  <Card className="p-6">
+                    <div className="text-sm text-muted-foreground mb-2">Weekly P&L</div>
+                    <div className={`text-2xl font-bold ${(performanceData?.weeklyPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${(performanceData?.weeklyPnL || 0).toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Last 7 days</div>
+                  </Card>
+                  <Card className="p-6">
+                    <div className="text-sm text-muted-foreground mb-2">Performance Grade</div>
+                    <div className="text-2xl font-bold">{performanceData?.performanceGrade || 'N/A'}</div>
+                    <div className="text-xs text-muted-foreground">Risk Level: {performanceData?.riskLevel || 'Unknown'}</div>
+                  </Card>
+                </div>
+
+                {/* Performance Summary */}
+                {performanceData && (
+                  <Card className="p-6">
+                    <h4 className="text-lg font-semibold mb-4">Performance Summary</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm text-muted-foreground">Profit Margin</div>
+                        <div className="text-xl font-bold">{performanceData.profitMargin.toFixed(2)}%</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Risk/Reward Ratio</div>
+                        <div className="text-xl font-bold">{performanceData.riskRewardRatio.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Consistency</div>
+                        <div className="text-xl font-bold">{performanceData.isConsistent ? 'Consistent' : 'Volatile'}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Status</div>
+                        <div className="text-xl font-bold">{performanceData.isProfitable ? 'Profitable' : 'Learning'}</div>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+              </>
+            )}
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </WalletGuard>
   )
 }

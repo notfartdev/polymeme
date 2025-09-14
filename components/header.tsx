@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { WalletConnect } from "@/components/wallet-connect"
+import { WalletAwareLink } from "@/components/wallet-aware-link"
 
 export function Header() {
   const { t, locale, setLocale } = useI18n()
@@ -191,11 +192,11 @@ export function Header() {
             {locale === "en" ? "中文" : "EN"}
           </Button>
 
-          <Link href="/portfolio">
+          <WalletAwareLink href="/portfolio" requiresWallet={true}>
             <Button variant="ghost" size="sm">
               <User className="w-4 h-4" />
             </Button>
-          </Link>
+          </WalletAwareLink>
         </div>
       </div>
     </header>

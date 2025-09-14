@@ -27,6 +27,8 @@ import { format } from "date-fns"
 import { useI18n } from "@/lib/i18n"
 import { useToast } from "@/hooks/use-toast"
 import { MarketDataTab } from "@/components/market-data-tab"
+import { BettingInterface } from "@/components/betting-interface"
+import { useWallet } from '@solana/wallet-adapter-react'
 
 // Market data interface
 interface MarketData {
@@ -51,6 +53,7 @@ interface MarketData {
 export default function MarketDetailPage() {
   const { t } = useI18n()
   const { toast } = useToast()
+  const { connected } = useWallet()
   const params = useParams()
   const marketId = params.id as string
   
@@ -64,6 +67,8 @@ export default function MarketDetailPage() {
   const [limitPrice, setLimitPrice] = useState("")
   const [shares, setShares] = useState(0)
   const [activeTab, setActiveTab] = useState<"market" | "data">("market")
+  const [isBettingOpen, setIsBettingOpen] = useState(false)
+  const [selectedBetSide, setSelectedBetSide] = useState<'yes' | 'no' | null>(null)
 
   // Fetch market data
   useEffect(() => {
@@ -103,6 +108,27 @@ export default function MarketDetailPage() {
       fetchMarket()
     }
   }, [marketId, toast])
+
+  // Handle bet button clicks
+  const handleBetClick = (side: 'yes' | 'no') => {
+    if (!connected) {
+      toast({
+        title: "Wallet Required",
+        description: "Please connect your wallet to place a bet.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setSelectedBetSide(side)
+    setIsBettingOpen(true)
+  }
+
+  // Handle bet placement completion
+  const handleBetPlaced = () => {
+    // Refresh market data to show updated betting stats
+    fetchMarket()
+  }
 
   if (loading) {
     return (
@@ -329,8 +355,34 @@ export default function MarketDetailPage() {
                 <div><strong>Asset:</strong> {market.asset}</div>
                 <div><strong>Type:</strong> {market.questionType}</div>
                 <div><strong>Created:</strong> {format(new Date(market.createdAt), "MMM dd, yyyy 'at' p 'UTC'")}</div>
-                {market.tokenMint && <div><strong>Token Mint:</strong> {market.tokenMint}</div>}
               </div>
+
+              {/* Token Requirements */}
+              <Card className="p-4 bg-blue-50 border-blue-200 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Hash className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-blue-900">Betting Token Required</h3>
+                    <p className="text-sm text-blue-700">You need this token to place bets on this market</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {market.token_logo && (
+                      <img src={market.token_logo} alt={market.token_symbol} className="w-6 h-6 rounded-full" />
+                    )}
+                    <span className="font-medium">{market.token_symbol || "SOL"}</span>
+                    <span className="text-muted-foreground">({market.token_name || "Solana"})</span>
+                  </div>
+                  {market.token_mint && (
+                    <div className="text-xs text-muted-foreground font-mono bg-white p-2 rounded border">
+                      Contract: {market.token_mint}
+                    </div>
+                  )}
+                </div>
+              </Card>
 
               <div className="flex gap-3">
                 <Button variant="outline" className="text-green-600 border-green-200 hover:bg-green-50 bg-transparent">
@@ -451,7 +503,10 @@ export default function MarketDetailPage() {
                       ? "bg-blue-600 hover:bg-blue-700"
                       : "bg-blue-100 hover:bg-blue-200 text-blue-700"
                   }`}
-                  onClick={() => setSelectedOutcome("yes")}
+                  onClick={() => {
+                    setSelectedOutcome("yes")
+                    handleBetClick("yes")
+                  }}
                 >
                   Yes {mainPercentage}¢
                 </Button>
@@ -462,7 +517,10 @@ export default function MarketDetailPage() {
                       ? "bg-red-600 hover:bg-red-700 text-white"
                       : "bg-red-100 hover:bg-red-200 text-red-700"
                   }`}
-                  onClick={() => setSelectedOutcome("no")}
+                  onClick={() => {
+                    setSelectedOutcome("no")
+                    handleBetClick("no")
+                  }}
                 >
                   No {oppositePercentage}¢
                 </Button>
@@ -566,6 +624,22 @@ export default function MarketDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Betting Interface Modal */}
+      {market && (
+        <BettingInterface
+          marketId={market.id}
+          marketTitle={market.question}
+          requiredTokenMint={market.token_mint || "So11111111111111111111111111111111111111112"} // Default to SOL
+          requiredTokenSymbol={market.token_symbol || "SOL"}
+          isOpen={isBettingOpen}
+          onClose={() => {
+            setIsBettingOpen(false)
+            setSelectedBetSide(null)
+          }}
+          onBetPlaced={handleBetPlaced}
+        />
+      )}
     </div>
   )
 }

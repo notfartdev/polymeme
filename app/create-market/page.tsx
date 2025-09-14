@@ -22,6 +22,7 @@ import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
 import { TokenInfoCard } from "@/components/token-info-card"
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletAssets } from '@/hooks/use-wallet-assets'
+import { WalletGuard } from '@/components/wallet-guard'
 
 // Wallet assets will be fetched from the user's actual wallet
 
@@ -376,6 +377,9 @@ export default function CreateMarketPage() {
         closingDate: closingDateTime.toISOString(),
         // Include token mint address for smart contract
         tokenMint: selectedToken?.mint,
+        tokenSymbol: selectedToken?.symbol,
+        tokenName: selectedToken?.name,
+        tokenLogo: selectedToken?.logo,
         // Include wallet address for user linking
         creatorWalletAddress: publicKey?.toString(),
         // Initial bet details
@@ -513,8 +517,9 @@ export default function CreateMarketPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <WalletGuard>
+      <div className="min-h-screen bg-background">
+        <Header />
 
       <div className="container mx-auto px-4 py-6">
         <div className="max-w-4xl mx-auto">
@@ -1319,6 +1324,7 @@ export default function CreateMarketPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </WalletGuard>
   )
 }

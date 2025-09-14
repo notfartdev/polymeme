@@ -5,6 +5,7 @@ import { MarketCoverflow } from "@/components/market-coverflow"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useI18n } from "@/lib/i18n"
+import { WalletAwareLink } from "@/components/wallet-aware-link"
 
 export default function HomePage() {
   const { t } = useI18n()
@@ -27,11 +28,11 @@ export default function HomePage() {
 
         {/* Action Buttons */}
         <div className="flex gap-3 justify-center pb-4">
-          <Link href="/create-market">
+          <WalletAwareLink href="/create-market" requiresWallet={true}>
             <Button size="lg" className="px-6 py-2 rounded-full">
               {t("cta_create_market")}
             </Button>
-          </Link>
+          </WalletAwareLink>
           <Link href="/markets">
             <Button variant="outline" size="lg" className="px-6 py-2 rounded-full bg-transparent">
               {t("cta_see_all")}

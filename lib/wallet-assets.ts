@@ -302,15 +302,26 @@ export async function fetchWalletTokenAccounts(walletAddress: string): Promise<W
 
       // Fetch price data from CoinGecko
       try {
-        const tokenData = await CoinGeckoAPI.fetchTokenData(tokenInfo.symbol)
-        if (tokenData) {
+        const tokenData = await CoinGeckoAPI.getTokenData(tokenInfo.symbol)
+        if (tokenData && tokenData.current_price) {
           asset.logo = asset.logo || tokenData.image
-          asset.price = tokenData.currentPrice
-          asset.value = balance * (tokenData.currentPrice || 0)
-          asset.change24h = tokenData.priceChange24h
+          asset.price = tokenData.current_price
+          asset.value = balance * tokenData.current_price
+          asset.change24h = tokenData.price_change_percentage_24h
+          console.log(`Price data for ${tokenInfo.symbol}:`, { price: tokenData.current_price, value: asset.value })
+        } else {
+          console.warn(`No price data found for ${tokenInfo.symbol}`)
+          // Set default values for tokens without price data
+          asset.price = 0
+          asset.value = 0
+          asset.change24h = 0
         }
       } catch (error) {
         console.warn(`Failed to fetch price data for ${tokenInfo.symbol}:`, error)
+        // Set default values on error
+        asset.price = 0
+        asset.value = 0
+        asset.change24h = 0
       }
 
       assets.push(asset)
@@ -349,15 +360,24 @@ export async function fetchSOLBalance(walletAddress: string): Promise<WalletAsse
 
     // Fetch SOL price from CoinGecko
     try {
-      const tokenData = await CoinGeckoAPI.fetchTokenData('SOL')
-      if (tokenData) {
+      const tokenData = await CoinGeckoAPI.getTokenData('SOL')
+      if (tokenData && tokenData.current_price) {
         asset.logo = tokenData.image
-        asset.price = tokenData.currentPrice
-        asset.value = solBalance * (tokenData.currentPrice || 0)
-        asset.change24h = tokenData.priceChange24h
+        asset.price = tokenData.current_price
+        asset.value = solBalance * tokenData.current_price
+        asset.change24h = tokenData.price_change_percentage_24h
+        console.log(`SOL price data:`, { price: tokenData.current_price, value: asset.value })
+      } else {
+        console.warn('No SOL price data found')
+        asset.price = 0
+        asset.value = 0
+        asset.change24h = 0
       }
     } catch (error) {
       console.warn('Failed to fetch SOL price data:', error)
+      asset.price = 0
+      asset.value = 0
+      asset.change24h = 0
     }
 
     return asset
