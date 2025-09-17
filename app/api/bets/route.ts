@@ -99,17 +99,30 @@ export async function POST(request: NextRequest) {
 
     // Update market betting stats
     const updateField = betSide === 'yes' ? 'total_yes_bets' : 'total_no_bets'
-    const { error: marketUpdateError } = await supabase
+    
+    // First, get current market stats
+    const { data: currentMarket, error: fetchError } = await supabase
       .from('markets')
-      .update({
-        [updateField]: supabase.raw(`${updateField} + 1`),
-        total_volume: supabase.raw(`total_volume + ${amount}`)
-      })
+      .select(`${updateField}, total_volume`)
       .eq('id', marketId)
+      .single()
 
-    if (marketUpdateError) {
-      console.error('Error updating market stats:', marketUpdateError)
-      // Don't fail the bet creation for this
+    if (fetchError) {
+      console.error('Error fetching market stats:', fetchError)
+    } else {
+      // Update market stats with calculated values
+      const { error: marketUpdateError } = await supabase
+        .from('markets')
+        .update({
+          [updateField]: (currentMarket[updateField] || 0) + 1,
+          total_volume: (currentMarket.total_volume || 0) + amount
+        })
+        .eq('id', marketId)
+
+      if (marketUpdateError) {
+        console.error('Error updating market stats:', marketUpdateError)
+        // Don't fail the bet creation for this
+      }
     }
 
     return NextResponse.json({

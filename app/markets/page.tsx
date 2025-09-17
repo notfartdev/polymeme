@@ -4,14 +4,14 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Search, TrendingUp, Bookmark, Share2, Hash, Clock, Users } from "lucide-react"
+import { Search, TrendingUp, Hash, Clock, Users, Heart } from "lucide-react"
 import Header from "@/components/header"
 import Link from "next/link"
 import { useI18n } from "@/lib/i18n"
 import { format } from "date-fns"
 import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
 
-const categories = ["All", "Trending", "Politics", "Sports", "Crypto", "Tech", "Culture", "World", "Economy"]
+const categories = ["Active", "Completed"] // Active and completed markets
 
 // Interface for real market data
 interface MarketData {
@@ -34,130 +34,12 @@ interface MarketData {
 }
 
 // Mock markets for demo (will be replaced by real data)
-const mockMarkets = [
-  {
-    id: 1,
-    question: "Fed decision in September?",
-    category: "Economy",
-    image: "/placeholder-n8e73.png",
-    options: [
-      { name: "50 bps decrease", percentage: 11, type: "yes" },
-      { name: "25 bps decrease", percentage: 87, type: "yes" },
-    ],
-    volume: "$107m",
-    trending: true,
-  },
-  {
-    id: 2,
-    question: "New York City Mayoral Election",
-    category: "Politics",
-    image: "/placeholder-qmqsm.png",
-    options: [
-      { name: "Zohran Mamdani", percentage: 81, type: "yes" },
-      { name: "Andrew Cuomo", percentage: 17, type: "yes" },
-    ],
-    volume: "$66m",
-  },
-  {
-    id: 3,
-    question: "Skye Valadez confirmed perp?",
-    category: "Culture",
-    image: "/person-silhouette.png",
-    percentage: 13,
-    volume: "$365k",
-  },
-  {
-    id: 4,
-    question: "Super Bowl Champion 2026",
-    category: "Sports",
-    image: "/super-bowl-trophy.jpg",
-    options: [
-      { name: "Buffalo", percentage: 14, type: "yes" },
-      { name: "Baltimore", percentage: 13, type: "yes" },
-    ],
-    volume: "$46m",
-  },
-  {
-    id: 5,
-    question: "Who will win the USDH ticker?",
-    category: "Crypto",
-    image: "/cryptocurrency-token.png",
-    options: [
-      { name: "Native Markets", percentage: 96, type: "yes" },
-      { name: "Paxos", percentage: 4, type: "yes" },
-    ],
-    volume: "$4m",
-  },
-  {
-    id: 6,
-    question: "Will Russia invade a NATO country in 2025?",
-    category: "World",
-    image: "/placeholder-azlmv.png",
-    percentage: 7,
-    volume: "$346k",
-  },
-  {
-    id: 7,
-    question: "US x Venezuela military engagement by...?",
-    category: "World",
-    image: "/military-flags.jpg",
-    options: [
-      { name: "October 31", percentage: 23, type: "yes" },
-      { name: "December 31", percentage: 38, type: "yes" },
-    ],
-    volume: "$1m",
-  },
-  {
-    id: 8,
-    question: "Elon no longer world's richest before 2026?",
-    category: "Tech",
-    image: "/elon-musk-inspired-visionary.png",
-    percentage: 56,
-    volume: "$493k",
-  },
-  {
-    id: 9,
-    question: "Will Eric Adams drop out?",
-    category: "Politics",
-    image: "/placeholder-kw8si.png",
-    percentage: 62,
-    volume: "$1m",
-  },
-  {
-    id: 10,
-    question: "Boxing: Canelo Álvarez vs. Terence Crawford",
-    category: "Sports",
-    image: "/placeholder-s6nbq.png",
-    options: [
-      { name: "Canelo", percentage: 62, type: "yes" },
-      { name: "Crawford", percentage: 38, type: "no" },
-    ],
-    volume: "$603k",
-  },
-  {
-    id: 11,
-    question: "Nobel Peace Prize Winner 2025",
-    category: "Culture",
-    image: "/placeholder-wizoz.png",
-    options: [
-      { name: "Sudan's Emergency...", percentage: 16, type: "yes" },
-      { name: "Yulia Navalnaya", percentage: 12, type: "yes" },
-    ],
-    volume: "$4m",
-  },
-  {
-    id: 12,
-    question: "Israel strikes Iran by September 30?",
-    category: "World",
-    image: "/placeholder-yw14w.png",
-    percentage: 11,
-    volume: "$226k",
-  },
-]
+// No more mock markets - only real markets from database
+const mockMarkets: any[] = []
 
 export default function MarketsPage() {
   const { t } = useI18n()
-  const [selectedCategory, setSelectedCategory] = useState("All")
+  const [selectedCategory, setSelectedCategory] = useState("Active")
   const [searchQuery, setSearchQuery] = useState("")
   const [realMarkets, setRealMarkets] = useState<MarketData[]>([])
   const [loading, setLoading] = useState(true)
@@ -196,31 +78,28 @@ export default function MarketsPage() {
     fetchMarkets()
   }, [])
 
-  // Combine real markets with mock markets
-  const allMarkets = [
-    // Real markets (user-created)
-    ...realMarkets.map(market => ({
-      id: market.id,
-      question: market.question,
-      category: "Crypto", // All user-created markets are crypto for now
-      image: null,
-      percentage: 65, // Mock percentage for now
-      volume: "$0", // Mock volume for now
-      asset: market.asset,
-      status: market.status,
-      closingDate: market.closingDate,
-      creator: market.creator,
-      isReal: true
-    })),
-    // Mock markets (demo data)
-    ...mockMarkets.map(market => ({
-      ...market,
-      isReal: false
-    }))
-  ]
+  // Only show real markets from database
+  const allMarkets = realMarkets.map(market => ({
+    id: market.id,
+    question: market.question,
+    category: "Crypto", // All user-created markets are crypto for now
+    image: null,
+    percentage: 65, // Mock percentage for now
+    volume: "$0", // Mock volume for now
+    asset: market.asset,
+    status: market.status,
+    closingDate: market.closingDate,
+    creator: market.creator,
+    isReal: true
+  }))
 
   const filteredMarkets = allMarkets.filter((market) => {
-    const matchesCategory = selectedCategory === "All" || market.category === selectedCategory
+    // Filter by active/completed status
+    const now = new Date()
+    const closingDate = new Date(market.closingDate)
+    const isActive = closingDate.getTime() > now.getTime()
+    
+    const matchesCategory = selectedCategory === "Active" ? isActive : !isActive
     const matchesSearch = market.question.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesCategory && matchesSearch
   })
@@ -257,7 +136,7 @@ export default function MarketsPage() {
                 className="whitespace-nowrap"
               >
                 {category === "Trending" && <TrendingUp className="w-4 h-4 mr-2" />}
-                {t((`cat_${category}` as unknown) as any)}
+                {category}
               </Button>
             ))}
           </div>
@@ -293,8 +172,8 @@ export default function MarketsPage() {
 
             return (
               <Link key={market.id} href={`/markets/${market.id}`}>
-                <Card className="p-4 hover:shadow-lg transition-shadow cursor-pointer bg-card border-border">
-                  {/* Header with image and question */}
+                <Card className="p-4 hover:shadow-lg hover:shadow-green-500/20 hover:border-green-200 transition-all duration-300 cursor-pointer bg-card border-border group">
+                  {/* Header with image, question, and watchlist */}
                   <div className="flex items-start gap-3 mb-4">
                     {market.isReal ? (
                       // Real market - show token image if available, otherwise hash icon
@@ -343,14 +222,30 @@ export default function MarketsPage() {
                         {market.question}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
-                        <Share2 className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
-                        <Bookmark className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    {/* Watchlist heart icon */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        // Toggle watchlist
+                        const isWatched = localStorage.getItem(`watchlist-${market.id}`)
+                        if (isWatched) {
+                          localStorage.removeItem(`watchlist-${market.id}`)
+                        } else {
+                          localStorage.setItem(`watchlist-${market.id}`, JSON.stringify({
+                            marketId: market.id,
+                            title: market.question,
+                            addedAt: new Date().toISOString()
+                          }))
+                        }
+                      }}
+                      title="Add to watchlist"
+                    >
+                      <Heart className="h-4 w-4 text-muted-foreground hover:text-red-500" />
+                    </Button>
                   </div>
 
                   <div className="mb-4">
@@ -385,24 +280,66 @@ export default function MarketsPage() {
                     </Button>
                   </div>
 
-                  {/* Volume and additional info */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{market.volume} {t("vol_abbrev")}</span>
-                    {market.isReal && (
+                  {/* Enhanced Market Stats */}
+                  <div className="space-y-2">
+                    {/* First row: Volume and Bets */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        <span>{format(new Date(market.closingDate), "MMM dd")}</span>
+                        <TrendingUp className="h-3 w-3" />
+                        <span>{market.volume || "0"} {t("vol_abbrev")}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        <span>{market.totalYesBets + market.totalNoBets || 0} bets</span>
+                      </div>
+                    </div>
+                    
+                    {/* Second row: Time remaining and Liquidity */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      {market.isReal ? (
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {(() => {
+                              const now = new Date()
+                              const closing = new Date(market.closingDate)
+                              const diffMs = closing.getTime() - now.getTime()
+                              
+                              if (diffMs <= 0) {
+                                return "Expired"
+                              }
+                              
+                              const totalHours = Math.floor(diffMs / (1000 * 60 * 60))
+                              const days = Math.floor(totalHours / 24)
+                              const hours = totalHours % 24
+                              
+                              if (days > 0 && hours > 0) {
+                                return `${days}d ${hours}h left`
+                              } else if (days > 0) {
+                                return `${days}d left`
+                              } else {
+                                return `${hours}h left`
+                              }
+                            })()}
+                          </span>
+                        </div>
+                      ) : (
+                        <span>Mock market</span>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <span className="text-green-600 font-medium">
+                          {market.totalVolume ? `${(market.totalVolume / 1000).toFixed(1)}K SOL` : "0 SOL"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Creator info for real markets */}
+                    {market.isReal && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1 border-t border-border/50">
+                        <span>by {market.creator.slice(0, 8)}...{market.creator.slice(-8)}</span>
                       </div>
                     )}
                   </div>
-                  
-                  {/* Creator info for real markets */}
-                  {market.isReal && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
-                      <Users className="h-3 w-3" />
-                      <span>by {market.creator}</span>
-                    </div>
-                  )}
                 </Card>
               </Link>
             )

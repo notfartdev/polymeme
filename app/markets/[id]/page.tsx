@@ -22,12 +22,13 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import Header from "@/components/header"
-import { Line, LineChart, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { format } from "date-fns"
 import { useI18n } from "@/lib/i18n"
 import { useToast } from "@/hooks/use-toast"
 import { MarketDataTab } from "@/components/market-data-tab"
 import { BettingInterface } from "@/components/betting-interface"
+import { RealtimeTokenChart } from "@/components/realtime-token-chart"
+import { TokenNews } from "@/components/token-news"
 import { useWallet } from '@solana/wallet-adapter-react'
 
 // Market data interface
@@ -42,12 +43,18 @@ interface MarketData {
   status: 'active' | 'pending' | 'closed'
   creator: string
   tokenMint?: string
+  tokenSymbol?: string
+  tokenName?: string
+  tokenLogo?: string
   multipleChoiceOptions?: string[]
   minValue?: string
   maxValue?: string
   unit?: string
   earliestDate?: string
   latestDate?: string
+  totalYesBets?: number
+  totalNoBets?: number
+  totalVolume?: number
 }
 
 export default function MarketDetailPage() {
@@ -60,7 +67,6 @@ export default function MarketDetailPage() {
   const [market, setMarket] = useState<MarketData | null>(null)
   const [loading, setLoading] = useState(true)
   const [amount, setAmount] = useState("")
-  const [selectedTab, setSelectedTab] = useState("1D")
   const [tradingMode, setTradingMode] = useState<"buy" | "sell">("buy")
   const [orderType, setOrderType] = useState<"market" | "limit">("market")
   const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes")
@@ -69,45 +75,55 @@ export default function MarketDetailPage() {
   const [activeTab, setActiveTab] = useState<"market" | "data">("market")
   const [isBettingOpen, setIsBettingOpen] = useState(false)
   const [selectedBetSide, setSelectedBetSide] = useState<'yes' | 'no' | null>(null)
+  const [isBookmarked, setIsBookmarked] = useState(false)
 
-  // Fetch market data
-  useEffect(() => {
-    const fetchMarket = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`/api/markets/${marketId}`)
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast({
-              title: "Market not found",
-              description: "The market you're looking for doesn't exist.",
-              variant: "destructive"
-            })
-          } else {
-            throw new Error('Failed to fetch market')
-          }
-          return
+  // Fetch market data function
+  const fetchMarket = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/markets/${marketId}`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast({
+            title: "Market not found",
+            description: "The market you're looking for doesn't exist.",
+            variant: "destructive"
+          })
+        } else {
+          throw new Error('Failed to fetch market')
         }
-        
-        const marketData = await response.json()
-        setMarket(marketData)
-      } catch (error) {
-        console.error('Error fetching market:', error)
-        toast({
-          title: "Error",
-          description: "Failed to load market data. Please try again.",
-          variant: "destructive"
-        })
-      } finally {
-        setLoading(false)
+        return
       }
+      
+      const marketData = await response.json()
+      setMarket(marketData)
+    } catch (error) {
+      console.error('Error fetching market:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load market data. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
+  }
 
+  // Fetch market data on component mount
+  useEffect(() => {
     if (marketId) {
       fetchMarket()
     }
   }, [marketId, toast])
+
+  // Check bookmark state on load
+  useEffect(() => {
+    if (market?.id) {
+      const bookmarkData = localStorage.getItem(`bookmark-${market.id}`)
+      setIsBookmarked(!!bookmarkData)
+    }
+  }, [market?.id])
 
   // Handle bet button clicks
   const handleBetClick = (side: 'yes' | 'no') => {
@@ -163,9 +179,22 @@ export default function MarketDetailPage() {
     )
   }
 
-  // For Yes/No markets, we'll use mock percentages for now
-  // In a real app, these would come from betting data
-  const mainPercentage = 65 // Mock: 65% chance of "Yes"
+  // Calculate percentages based on betting volume (what people actually paid)
+  // For now, we'll use a simple calculation. In a real system, you'd track YES/NO volume separately
+  const totalVolume = market?.totalVolume || 0
+  const totalBets = (market?.totalYesBets || 0) + (market?.totalNoBets || 0)
+  
+  // If we have volume data, use it. Otherwise fall back to bet count ratio
+  let mainPercentage = 50 // Default 50/50
+  if (totalVolume > 0) {
+    // For now, assume volume is distributed based on bet counts
+    // In a real system, you'd track YES volume vs NO volume separately
+    const yesBetRatio = totalBets > 0 ? (market?.totalYesBets || 0) / totalBets : 0.5
+    mainPercentage = Math.round(yesBetRatio * 100)
+  } else if (totalBets > 0) {
+    mainPercentage = Math.round(((market?.totalYesBets || 0) / totalBets) * 100)
+  }
+  
   const oppositePercentage = 100 - mainPercentage
 
   const currentPrice = selectedOutcome === "yes" ? mainPercentage : oppositePercentage
@@ -178,14 +207,6 @@ export default function MarketDetailPage() {
   const closingDate = new Date(market.closingDate)
   const formattedClosingDate = format(closingDate, "MMM dd, yyyy 'at' p 'UTC'")
   
-  // Mock chart data for now
-  const chartData = [
-    { time: "Today", value: mainPercentage },
-    { time: "1D", value: mainPercentage + 2 },
-    { time: "1W", value: mainPercentage - 1 },
-    { time: "1M", value: mainPercentage + 1 },
-    { time: "ALL", value: mainPercentage },
-  ]
 
   return (
     <div className="min-h-screen bg-background">
@@ -206,7 +227,19 @@ export default function MarketDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Market Header */}
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              {market.tokenLogo ? (
+                <img 
+                  src={market.tokenLogo} 
+                  alt={market.tokenSymbol || market.asset} 
+                  className="w-16 h-16 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to gradient if image fails to load
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <div className={`w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ${market.tokenLogo ? 'hidden' : ''}`}>
                 <Hash className="h-8 w-8 text-white" />
               </div>
               <div className="flex-1">
@@ -226,16 +259,60 @@ export default function MarketDetailPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    Created by {market.creator}
+                    Created by{" "}
+                    <a 
+                      href={`https://solscan.io/account/${market.creator}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline font-mono text-xs"
+                    >
+                      {market.creator.slice(0, 8)}...{market.creator.slice(-8)}
+                    </a>
                   </span>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    const marketUrl = window.location.href
+                    const shareText = `Check out this prediction market: "${market.question}"`
+                    
+                    // Try to open X (Twitter) share dialog
+                    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(marketUrl)}`
+                    window.open(twitterUrl, '_blank', 'width=550,height=420')
+                    
+                    // Also copy to clipboard as fallback
+                    navigator.clipboard.writeText(marketUrl)
+                    console.log('Market shared on X and URL copied to clipboard:', marketUrl)
+                  }}
+                  title="Share on X (Twitter)"
+                >
                   <Share2 className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm">
-                  <Bookmark className="h-4 w-4" />
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    // Toggle bookmark state
+                    if (isBookmarked) {
+                      localStorage.removeItem(`bookmark-${market.id}`)
+                      setIsBookmarked(false)
+                      console.log('Market removed from bookmarks')
+                    } else {
+                      localStorage.setItem(`bookmark-${market.id}`, JSON.stringify({
+                        marketId: market.id,
+                        title: market.question,
+                        createdAt: new Date().toISOString()
+                      }))
+                      setIsBookmarked(true)
+                      console.log('Market added to bookmarks')
+                    }
+                  }}
+                  title={isBookmarked ? "Remove bookmark" : "Bookmark market"}
+                >
+                  <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
                 </Button>
               </div>
             </div>
@@ -267,69 +344,54 @@ export default function MarketDetailPage() {
             {/* Tab Content */}
             {activeTab === "market" ? (
               <>
-                {/* Chart */}
+                {/* Real-time Token Price Chart */}
+                <RealtimeTokenChart 
+                  tokenSymbol={market.tokenSymbol || "SOL"}
+                  tokenName={market.tokenName}
+                  tokenLogo={market.tokenLogo}
+                />
+
+
+            {/* Market Data */}
             <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <span className="text-3xl font-bold text-green-400">{mainPercentage}%</span>
-                  <div className="flex items-center gap-1 text-green-400">
-                    <TrendingUp className="h-4 w-4" />
-                    <span className="text-sm">+2%</span>
+              <h3 className="text-lg font-semibold mb-4">Market Data</h3>
+              
+              {/* Volume-Based Odds */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{mainPercentage}%</div>
+                    <div className="text-sm text-green-800 font-medium">YES Odds</div>
+                    <div className="text-xs text-green-700 mt-1">Based on betting volume</div>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  {["1D", "1W", "1M", "ALL"].map((tab) => (
-                    <Button
-                      key={tab}
-                      variant={selectedTab === tab ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setSelectedTab(tab)}
-                    >
-                      {tab}
-                    </Button>
-                  ))}
+                
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{oppositePercentage}%</div>
+                    <div className="text-sm text-red-800 font-medium">NO Odds</div>
+                    <div className="text-xs text-red-700 mt-1">Based on betting volume</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <XAxis dataKey="time" axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} />
-                    <Line type="monotone" dataKey="value" stroke="#4ade80" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-
-            {/* Betting Options */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Chance</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium">Yes</span>
-                    <span className="text-2xl font-bold">{mainPercentage}%</span>
-                    <div className="flex items-center gap-1 text-green-400">
-                      <TrendingUp className="h-3 w-3" />
-                      <span className="text-xs">+2%</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                      Yes {mainPercentage}¢
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-red-300 text-red-600 hover:bg-red-50 bg-transparent"
-                    >
-                      No {oppositePercentage}¢
-                    </Button>
-                  </div>
+              {/* Market Stats */}
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-foreground">{market.totalYesBets || 0}</div>
+                  <div className="text-sm text-muted-foreground">YES Bets</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-foreground">{market.totalNoBets || 0}</div>
+                  <div className="text-sm text-muted-foreground">NO Bets</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-foreground">${market.totalVolume || 0}</div>
+                  <div className="text-sm text-muted-foreground">Total Volume</div>
                 </div>
               </div>
             </Card>
+
 
             {/* Rules Summary */}
             <Card className="p-6">
@@ -370,15 +432,23 @@ export default function MarketDetailPage() {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    {market.token_logo && (
-                      <img src={market.token_logo} alt={market.token_symbol} className="w-6 h-6 rounded-full" />
+                    {market.tokenLogo && (
+                      <img src={market.tokenLogo} alt={market.tokenSymbol} className="w-6 h-6 rounded-full" />
                     )}
-                    <span className="font-medium">{market.token_symbol || "SOL"}</span>
-                    <span className="text-muted-foreground">({market.token_name || "Solana"})</span>
+                    <span className="font-medium">{market.tokenSymbol || "SOL"}</span>
+                    <span className="text-muted-foreground">({market.tokenName || "Solana"})</span>
                   </div>
-                  {market.token_mint && (
+                  {market.tokenMint && (
                     <div className="text-xs text-muted-foreground font-mono bg-white p-2 rounded border">
-                      Contract: {market.token_mint}
+                      Contract:{" "}
+                      <a 
+                        href={`https://solscan.io/token/${market.tokenMint}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        {market.tokenMint.slice(0, 8)}...{market.tokenMint.slice(-8)}
+                      </a>
                     </div>
                   )}
                 </div>
@@ -437,13 +507,10 @@ export default function MarketDetailPage() {
               <div className="mt-4 pt-4 border-t border-border">
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <span>
-                    <strong>Series</strong> KXBTCMAXY
+                    <strong>Market ID</strong> {market.id}
                   </span>
                   <span>
-                    <strong>Event</strong> KXBTCMAXY-25
-                  </span>
-                  <span>
-                    <strong>Market</strong> KXBTCMAXY-25-DEC31-139999.99
+                    <strong>Created</strong> {new Date(market.createdAt).toLocaleDateString()}
                   </span>
                 </div>
               </div>
@@ -458,42 +525,28 @@ export default function MarketDetailPage() {
           <div className="space-y-4">
             <Card className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                {market.tokenLogo ? (
+                  <img 
+                    src={market.tokenLogo} 
+                    alt={market.tokenSymbol || market.asset} 
+                    className="w-8 h-8 rounded-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                    }}
+                  />
+                ) : null}
+                <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ${market.tokenLogo ? 'hidden' : ''}`}>
                   <Hash className="h-4 w-4 text-white" />
                 </div>
                 <div>
                   <div className="font-medium text-sm">{market.asset}</div>
                   <div className="text-xs text-muted-foreground">
-                    {tradingMode === "buy" ? "Buy" : "Sell"} {selectedOutcome === "yes" ? "Yes" : "No"} •{" "}
                     Yes/No Market
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-2 mb-4">
-                <Button
-                  className={`flex-1 ${tradingMode === "buy" ? "bg-blue-600 hover:bg-blue-700" : "bg-transparent border"}`}
-                  variant={tradingMode === "buy" ? "default" : "outline"}
-                  onClick={() => setTradingMode("buy")}
-                >
-                  Buy
-                </Button>
-                <Button
-                  variant={tradingMode === "sell" ? "default" : "outline"}
-                  className={`flex-1 ${tradingMode === "sell" ? "bg-red-600 hover:bg-red-700" : "bg-transparent"}`}
-                  onClick={() => setTradingMode("sell")}
-                >
-                  Sell
-                </Button>
-                <select
-                  className="px-3 py-2 border rounded-md bg-background text-sm"
-                  value={orderType}
-                  onChange={(e) => setOrderType(e.target.value as "market" | "limit")}
-                >
-                  <option value="market">Market</option>
-                  <option value="limit">Limit</option>
-                </select>
-              </div>
 
               <div className="flex gap-2 mb-4">
                 <Button
@@ -581,7 +634,6 @@ export default function MarketDetailPage() {
                 ) : (
                   <div>
                     <label className="text-sm font-medium">Amount</label>
-                    <div className="text-xs text-muted-foreground mb-2">Earn 4% Interest</div>
                     <Input
                       placeholder="$0"
                       value={amount}
@@ -621,6 +673,25 @@ export default function MarketDetailPage() {
                 )}
               </div>
             </Card>
+
+            {/* News Section */}
+            {(() => {
+              const newsTokenSymbol = market.tokenSymbol || market.asset || "SOL"
+              const newsTokenName = market.tokenName || market.asset || "Solana"
+              console.log('🔍 Market Data Debug:', {
+                tokenSymbol: market.tokenSymbol,
+                tokenName: market.tokenName,
+                asset: market.asset,
+                finalTokenSymbol: newsTokenSymbol,
+                finalTokenName: newsTokenName
+              })
+              return (
+                <TokenNews 
+                  tokenSymbol={newsTokenSymbol} 
+                  tokenName={newsTokenName} 
+                />
+              )
+            })()}
           </div>
         </div>
       </div>
@@ -630,8 +701,10 @@ export default function MarketDetailPage() {
         <BettingInterface
           marketId={market.id}
           marketTitle={market.question}
-          requiredTokenMint={market.token_mint || "So11111111111111111111111111111111111111112"} // Default to SOL
-          requiredTokenSymbol={market.token_symbol || "SOL"}
+          requiredTokenMint={market.tokenMint || "So11111111111111111111111111111111111111112"} // Default to SOL
+          requiredTokenSymbol={market.tokenSymbol || "SOL"}
+          requiredTokenName={market.tokenName}
+          requiredTokenLogo={market.tokenLogo}
           isOpen={isBettingOpen}
           onClose={() => {
             setIsBettingOpen(false)

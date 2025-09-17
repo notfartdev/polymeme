@@ -16,6 +16,8 @@ interface BettingInterfaceProps {
   marketTitle: string
   requiredTokenMint: string
   requiredTokenSymbol: string
+  requiredTokenName?: string
+  requiredTokenLogo?: string
   isOpen: boolean
   onClose: () => void
   onBetPlaced: () => void
@@ -34,6 +36,8 @@ export function BettingInterface({
   marketTitle,
   requiredTokenMint,
   requiredTokenSymbol,
+  requiredTokenName,
+  requiredTokenLogo,
   isOpen,
   onClose,
   onBetPlaced
@@ -44,6 +48,7 @@ export function BettingInterface({
   
   const [selectedSide, setSelectedSide] = useState<'yes' | 'no' | null>(null)
   const [betAmount, setBetAmount] = useState('')
+  const [usdAmount, setUsdAmount] = useState('')
   const [isPlacingBet, setIsPlacingBet] = useState(false)
   const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(null)
 
@@ -64,6 +69,36 @@ export function BettingInterface({
       }
     }
   }, [assets, requiredTokenMint])
+
+  // Convert token amount to USD
+  const convertToUSD = (tokenAmount: number) => {
+    if (!tokenBalance || tokenBalance.balance === 0) return 0
+    const tokenPrice = tokenBalance.value / tokenBalance.balance
+    return tokenAmount * tokenPrice
+  }
+
+  // Convert USD amount to token amount
+  const convertToToken = (usdAmount: number) => {
+    if (!tokenBalance || tokenBalance.balance === 0) return 0
+    const tokenPrice = tokenBalance.value / tokenBalance.balance
+    return usdAmount / tokenPrice
+  }
+
+  // Handle token amount change
+  const handleTokenAmountChange = (value: string) => {
+    setBetAmount(value)
+    const tokenAmount = parseFloat(value) || 0
+    const usd = convertToUSD(tokenAmount)
+    setUsdAmount(usd.toFixed(2))
+  }
+
+  // Handle USD amount change
+  const handleUsdAmountChange = (value: string) => {
+    setUsdAmount(value)
+    const usd = parseFloat(value) || 0
+    const tokenAmount = convertToToken(usd)
+    setBetAmount(tokenAmount.toFixed(6))
+  }
 
   const handleBetClick = (side: 'yes' | 'no') => {
     if (!connected) {
@@ -171,8 +206,24 @@ export function BettingInterface({
           <div className="p-3 bg-muted rounded-lg">
             <h3 className="font-semibold text-sm mb-1">Market</h3>
             <p className="text-sm text-muted-foreground">{marketTitle}</p>
+            <div className="flex items-center gap-2 mt-2">
+              {requiredTokenLogo && (
+                <img src={requiredTokenLogo} alt={requiredTokenSymbol} className="w-4 h-4 rounded-full" />
+              )}
+              <span className="text-xs text-muted-foreground">
+                {requiredTokenSymbol} {requiredTokenName && `(${requiredTokenName})`}
+              </span>
+            </div>
             <div className="mt-2 text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
-              Token: {requiredTokenMint}
+              Contract:{" "}
+              <a 
+                href={`https://solscan.io/token/${requiredTokenMint}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                {requiredTokenMint.slice(0, 8)}...{requiredTokenMint.slice(-8)}
+              </a>
             </div>
           </div>
 
@@ -227,6 +278,9 @@ export function BettingInterface({
                 <div className="text-2xl font-bold">
                   {tokenBalance.balance.toFixed(6)} {tokenBalance.symbol}
                 </div>
+                <div className="text-sm text-muted-foreground">
+                  Current price: ${(tokenBalance.value / tokenBalance.balance).toFixed(6)} per {tokenBalance.symbol}
+                </div>
               </Card>
 
               {/* Bet Side Selection */}
@@ -254,44 +308,82 @@ export function BettingInterface({
 
               {/* Bet Amount */}
               {selectedSide && (
-                <div className="space-y-2">
-                  <Label htmlFor="betAmount">Bet Amount ({tokenBalance.symbol})</Label>
-                  <Input
-                    id="betAmount"
-                    type="number"
-                    placeholder="0.00"
-                    value={betAmount}
-                    onChange={(e) => setBetAmount(e.target.value)}
-                    min="0"
-                    max={tokenBalance.balance}
-                    step="0.000001"
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="betAmount">Bet Amount ({tokenBalance.symbol})</Label>
+                    <Input
+                      id="betAmount"
+                      type="number"
+                      placeholder="0.00"
+                      value={betAmount}
+                      onChange={(e) => handleTokenAmountChange(e.target.value)}
+                      min="0"
+                      max={tokenBalance.balance}
+                      step="0.000001"
+                    />
+                  </div>
+
+                  {/* USD Converter */}
+                  <div className="space-y-2">
+                    <Label htmlFor="usdAmount">USD Value</Label>
+                    <Input
+                      id="usdAmount"
+                      type="number"
+                      placeholder="0.00"
+                      value={usdAmount}
+                      onChange={(e) => handleUsdAmountChange(e.target.value)}
+                      min="0"
+                      step="0.01"
+                    />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Real-time conversion based on current token price</span>
+                    {betAmount && usdAmount && (
+                      <span className="font-medium text-foreground">
+                        {betAmount} {tokenBalance.symbol} = ${usdAmount}
+                      </span>
+                    )}
+                  </div>
+                  </div>
+
+                  {/* Percentage Buttons */}
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setBetAmount((tokenBalance.balance * 0.25).toString())}
+                      onClick={() => {
+                        const amount = (tokenBalance.balance * 0.25).toString()
+                        handleTokenAmountChange(amount)
+                      }}
                     >
                       25%
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setBetAmount((tokenBalance.balance * 0.5).toString())}
+                      onClick={() => {
+                        const amount = (tokenBalance.balance * 0.5).toString()
+                        handleTokenAmountChange(amount)
+                      }}
                     >
                       50%
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setBetAmount((tokenBalance.balance * 0.75).toString())}
+                      onClick={() => {
+                        const amount = (tokenBalance.balance * 0.75).toString()
+                        handleTokenAmountChange(amount)
+                      }}
                     >
                       75%
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setBetAmount(tokenBalance.balance.toString())}
+                      onClick={() => {
+                        const amount = tokenBalance.balance.toString()
+                        handleTokenAmountChange(amount)
+                      }}
                     >
                       MAX
                     </Button>
