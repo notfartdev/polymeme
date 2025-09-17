@@ -26,6 +26,65 @@ import { WalletGuard } from '@/components/wallet-guard'
 
 // Wallet assets will be fetched from the user's actual wallet
 
+// Time-based prediction suggestions for memecoins
+const getTimeBasedSuggestions = (tokenData: TokenData | null, tokenSymbol: string, timeframe: string) => {
+  if (!tokenData || !tokenData.current_price) {
+    return [`Will ${tokenSymbol} pump 10%+ in the next ${timeframe}?`]
+  }
+  
+  const currentPrice = tokenData.current_price
+  const priceChange24h = tokenData.price_change_percentage_24h || 0
+  const suggestions = []
+  
+  // Calculate realistic targets based on timeframe and volatility
+  const getVolatilityMultiplier = (timeframe: string) => {
+    switch (timeframe) {
+      case '1H': return 0.02  // 2% max in 1 hour (more realistic)
+      case '3H': return 0.05  // 5% max in 3 hours  
+      case '6H': return 0.10  // 10% max in 6 hours
+      case '12H': return 0.15 // 15% max in 12 hours
+      case '24H': return 0.25 // 25% max in 24 hours (realistic for memecoins)
+      default: return 0.10
+    }
+  }
+  
+  const volatility = getVolatilityMultiplier(timeframe)
+  const bullishTarget = (currentPrice * (1 + volatility)).toFixed(4)
+  const bearishTarget = (currentPrice * (1 - volatility)).toFixed(4)
+  const moderateTarget = (currentPrice * (1 + volatility * 0.5)).toFixed(4)
+  
+  // Price-based suggestions (more realistic)
+  const percentageTarget = Math.round(volatility * 100)
+  suggestions.push(
+    `Will ${tokenSymbol} reach $${bullishTarget} in the next ${timeframe}?`,
+    `Will ${tokenSymbol} drop below $${bearishTarget} in the next ${timeframe}?`,
+    `Will ${tokenSymbol} pump ${percentageTarget}%+ in the next ${timeframe}?`
+  )
+  
+  // Volume-based suggestions (if available)
+  if (tokenData.total_volume) {
+    const currentVolume = tokenData.total_volume
+    const volumeTarget = (currentVolume * 2).toLocaleString()
+    suggestions.push(`Will ${tokenSymbol} volume exceed $${volumeTarget} in the next ${timeframe}?`)
+  }
+  
+  // Market cap suggestions
+  if (tokenData.market_cap) {
+    const currentMC = tokenData.market_cap
+    const mcTarget = (currentMC * 1.2).toLocaleString()
+    suggestions.push(`Will ${tokenSymbol} market cap exceed $${mcTarget} in the next ${timeframe}?`)
+  }
+  
+  // Trend-based suggestions
+  if (priceChange24h > 0) {
+    suggestions.push(`Will ${tokenSymbol} continue its uptrend in the next ${timeframe}?`)
+  } else {
+    suggestions.push(`Will ${tokenSymbol} reverse its downtrend in the next ${timeframe}?`)
+  }
+  
+  return suggestions
+}
+
 // Enhanced smart suggestions based on real-time data and events
 const getSmartSuggestions = (tokenData: TokenData | null, tokenSymbol: string) => {
   if (!tokenData) {
@@ -43,9 +102,9 @@ const getSmartSuggestions = (tokenData: TokenData | null, tokenSymbol: string) =
   
   // Price-based suggestions
   if (currentPrice > 0) {
-    const doublePrice = (currentPrice * 2).toFixed(6)
-    const tenXPrice = (currentPrice * 10).toFixed(6)
-    const halfPrice = (currentPrice * 0.5).toFixed(6)
+    const doublePrice = (currentPrice * 2).toFixed(4)
+    const tenXPrice = (currentPrice * 10).toFixed(4)
+    const halfPrice = (currentPrice * 0.5).toFixed(4)
     
     suggestions.push(
       `Will ${tokenSymbol} reach $${doublePrice} by end of 2024?`,
@@ -55,7 +114,7 @@ const getSmartSuggestions = (tokenData: TokenData | null, tokenSymbol: string) =
   }
   
   if (ath > 0) {
-    suggestions.push(`Will ${tokenSymbol} break its ATH of $${ath.toFixed(6)} by end of 2024?`)
+    suggestions.push(`Will ${tokenSymbol} break its ATH of $${ath.toFixed(4)} by end of 2024?`)
   }
   
   // Market cap based suggestions
@@ -78,22 +137,83 @@ const getSmartSuggestions = (tokenData: TokenData | null, tokenSymbol: string) =
   return suggestions
 }
 
-// AI-assisted description suggestions
+// AI-assisted description suggestions based on specific question context
 const getDescriptionSuggestions = (question: string, tokenData: TokenData | null, tokenSymbol: string) => {
   if (!question) return []
   
-  const suggestions = [
-    `This market will resolve to "Yes" if the specified condition is met by the closing date. The outcome will be determined based on publicly available data from major exchanges and official sources.`,
-    `Market resolution will be based on the token's performance against the specified target. Data will be sourced from CoinGecko, CoinMarketCap, and major centralized exchanges.`,
-    `This prediction market allows participants to bet on the future performance of ${tokenSymbol}. The market will resolve based on verifiable data from trusted sources.`,
-  ]
+  const suggestions = []
   
-  // Add token-specific suggestions if we have data
-  if (tokenData && tokenData.currentPrice && tokenData.marketCap && tokenData.ath) {
+  // Analyze question type and generate specific rules
+  const isPriceQuestion = /\$[\d.,]+/.test(question)
+  const isPercentageQuestion = /\d+%/.test(question)
+  const isTimeframeQuestion = /(1H|3H|6H|12H|24H|hour|day|week|month)/i.test(question)
+  const isVolumeQuestion = /volume/i.test(question)
+  const isMarketCapQuestion = /market cap|marketcap/i.test(question)
+  const isTrendQuestion = /(pump|dump|trend|continue|reverse)/i.test(question)
+  
+  // Extract specific values from question
+  const priceMatch = question.match(/\$([\d.,]+)/)
+  const percentageMatch = question.match(/(\d+)%/)
+  const timeframeMatch = question.match(/(1H|3H|6H|12H|24H|hour|day|week|month)/i)
+  
+  // Generate context-specific descriptions
+  if (isPriceQuestion && priceMatch) {
+    const targetPrice = priceMatch[1]
     suggestions.push(
-      `Current ${tokenSymbol} data: Price $${tokenData.currentPrice.toFixed(6)}, Market Cap $${(tokenData.marketCap / 1e9).toFixed(2)}B, ATH $${tokenData.ath.toFixed(6)}. Market will resolve based on these metrics.`
+      `This market resolves to "YES" if ${tokenSymbol} reaches or exceeds $${targetPrice} within the specified timeframe. Price data will be sourced from CoinGecko's aggregated price feed, which includes data from major exchanges like Binance, Coinbase, and Kraken.`,
+      `Resolution criteria: ${tokenSymbol} must trade at or above $${targetPrice} for at least 1 minute during the market period. The highest price reached will be used for resolution. Data source: CoinGecko API.`,
+      `Market rules: Price must be sustained for minimum 1 minute to count as "reached". Flash spikes that don't hold for 60+ seconds will not count. Resolution based on CoinGecko's volume-weighted average price.`
     )
   }
+  
+  if (isPercentageQuestion && percentageMatch) {
+    const percentage = percentageMatch[1]
+    suggestions.push(
+      `This market resolves to "YES" if ${tokenSymbol} gains ${percentage}% or more from the opening price. The opening price is the price at market creation time.`,
+      `Calculation: ((Final Price - Opening Price) / Opening Price) × 100 ≥ ${percentage}%. Opening price: $${tokenData?.current_price?.toFixed(4) || 'TBD'}. Data source: CoinGecko.`,
+      `Resolution rules: Price movement must be sustained for at least 5 minutes to count. Temporary spikes that don't hold will not qualify. Based on 24h volume-weighted average price.`
+    )
+  }
+  
+  if (isTimeframeQuestion && timeframeMatch) {
+    const timeframe = timeframeMatch[1]
+    suggestions.push(
+      `This is a ${timeframe} prediction market. The market will close exactly ${timeframe} after creation and resolve based on the final conditions at that time.`,
+      `Time-based resolution: Market closes at the exact ${timeframe} mark. Final price/condition at closing time determines the outcome. No extensions or delays.`,
+      `Fairness rules: All participants have the same ${timeframe} window. Market closes automatically at the specified time. Resolution occurs within 1 hour of market close.`
+    )
+  }
+  
+  if (isVolumeQuestion) {
+    suggestions.push(
+      `This market resolves based on ${tokenSymbol}'s trading volume. Volume data will be sourced from CoinGecko's aggregated volume feed across all major exchanges.`,
+      `Volume resolution: 24-hour trading volume must exceed the specified target. Volume includes all trading pairs (USDT, BTC, ETH, etc.) aggregated.`,
+      `Data source: CoinGecko API provides real-time volume data from 500+ exchanges. Volume is calculated in USD equivalent across all trading pairs.`
+    )
+  }
+  
+  if (isMarketCapQuestion) {
+    suggestions.push(
+      `This market resolves based on ${tokenSymbol}'s market capitalization. Market cap = circulating supply × current price. Data from CoinGecko.`,
+      `Market cap calculation: Uses circulating supply (not total supply) multiplied by current price. Updates in real-time based on price movements.`,
+      `Resolution criteria: Market cap must exceed the target value at market close. Based on CoinGecko's circulating supply data and real-time price feed.`
+    )
+  }
+  
+  if (isTrendQuestion) {
+    suggestions.push(
+      `This market resolves based on ${tokenSymbol}'s price trend direction. Trend is determined by comparing opening price to closing price.`,
+      `Trend analysis: "Pump" = price increases, "Dump" = price decreases. "Continue trend" = maintains current direction, "Reverse" = changes direction.`,
+      `Resolution: Based on price movement direction over the specified timeframe. Must be sustained for at least 10% of the total timeframe to count.`
+    )
+  }
+  
+  // Add general rules that apply to all markets
+  suggestions.push(
+    `General rules: This is a prediction market, not financial advice. All participants bet with their own tokens. Winners share the total pool proportionally. No house fee.`,
+    `Dispute resolution: If data sources disagree, CoinGecko will be the primary source. In case of technical issues, market may be extended by up to 1 hour.`,
+    `Risk warning: Memecoins are highly volatile. Past performance doesn't guarantee future results. Only bet what you can afford to lose.`
+  )
   
   return suggestions
 }
@@ -226,6 +346,7 @@ function CreateMarketContent() {
   const [selectedAsset, setSelectedAsset] = useState("")
   const [question, setQuestion] = useState("")
   const [description, setDescription] = useState("")
+  const [selectedTimeframe, setSelectedTimeframe] = useState("24H")
   const [closingDate, setClosingDate] = useState<Date | undefined>(undefined)
   const [closingTime, setClosingTime] = useState("23:59")
   const [isLoading, setIsLoading] = useState(false)
@@ -257,7 +378,12 @@ function CreateMarketContent() {
   }, [searchParams])
 
   const selectedToken = walletAssets.find(asset => asset.symbol === selectedAsset)
-  const questionSuggestions = getSmartSuggestions(tokenData, selectedAsset)
+  
+  // Use time-based suggestions for short timeframes, regular suggestions for longer ones
+  const questionSuggestions = selectedTimeframe && ['1H', '3H', '6H', '12H', '24H'].includes(selectedTimeframe) 
+    ? getTimeBasedSuggestions(tokenData, selectedAsset, selectedTimeframe)
+    : getSmartSuggestions(tokenData, selectedAsset)
+    
   const descriptionSuggestions = getDescriptionSuggestions(question, tokenData, selectedAsset)
 
   // Calculate question clarity when question changes
@@ -269,6 +395,16 @@ function CreateMarketContent() {
       setQuestionClarity(null)
     }
   }, [question])
+
+  // Auto-set closing date based on selected timeframe
+  useEffect(() => {
+    if (selectedTimeframe && ['1H', '3H', '6H', '12H', '24H'].includes(selectedTimeframe)) {
+      const now = new Date()
+      const hours = parseInt(selectedTimeframe.replace('H', ''))
+      const closingDate = new Date(now.getTime() + (hours * 60 * 60 * 1000))
+      setClosingDate(closingDate)
+    }
+  }, [selectedTimeframe])
 
   // Check for duplicate markets when question changes
   useEffect(() => {
@@ -673,13 +809,42 @@ function CreateMarketContent() {
                       </div>
                     
                 <div className="space-y-4">
+                  {/* Timeframe Selection */}
+                  <div>
+                    <Label className="text-sm font-medium mb-2 block">Prediction Timeframe</Label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {['1H', '3H', '6H', '12H', '24H'].map((timeframe) => (
+                        <Button
+                          key={timeframe}
+                          variant={selectedTimeframe === timeframe ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedTimeframe(timeframe)}
+                          className="h-10"
+                        >
+                          {timeframe}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedTimeframe === '1H' && 'Ultra-fast predictions for quick market moves'}
+                      {selectedTimeframe === '3H' && 'Short-term predictions for memecoin volatility'}
+                      {selectedTimeframe === '6H' && 'Medium-term predictions for trend analysis'}
+                      {selectedTimeframe === '12H' && 'Half-day predictions for significant moves'}
+                      {selectedTimeframe === '24H' && 'Daily predictions for major market shifts'}
+                    </p>
+                  </div>
+
                   <div>
                         <Label htmlFor="question">Your Question</Label>
                     <Input
                       id="question"
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
-                          placeholder={`Will ${selectedAsset} reach $0.01 by end of 2024?`}
+                          placeholder={
+                            selectedTimeframe && ['1H', '3H', '6H', '12H', '24H'].includes(selectedTimeframe)
+                              ? `Will ${selectedAsset} pump 5%+ in the next ${selectedTimeframe}?`
+                              : `Will ${selectedAsset} reach $0.01 by end of 2024?`
+                          }
                           className="h-12"
                         />
                         {questionClarity && (
@@ -781,6 +946,87 @@ function CreateMarketContent() {
                       <h2 className="text-2xl font-bold mb-2">Set Timeline</h2>
                       <p className="text-muted-foreground">When should this market close?</p>
                     </div>
+
+                    {/* Suggested Closing Times */}
+                    {selectedTimeframe && ['1H', '3H', '6H', '12H', '24H'].includes(selectedTimeframe) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-blue-900 mb-2">Suggested Closing Time</h3>
+                        <p className="text-sm text-blue-700 mb-3">
+                          Based on your {selectedTimeframe} timeframe selection, we suggest closing the market in {selectedTimeframe} from now.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const now = new Date()
+                              const hours = parseInt(selectedTimeframe.replace('H', ''))
+                              const suggestedDate = new Date(now.getTime() + (hours * 60 * 60 * 1000))
+                              setClosingDate(suggestedDate)
+                              setClosingTime(format(suggestedDate, 'HH:mm'))
+                            }}
+                            className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                          >
+                            Use {selectedTimeframe} from now
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Timeline Explanation */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">Market Timeline</h3>
+                      <div className="space-y-2 text-sm text-gray-700">
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 flex-shrink-0" />
+                          <span><strong>Betting Period:</strong> Users can place bets until the closing time</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-2 flex-shrink-0" />
+                          <span><strong>Market Closes:</strong> No new bets accepted after closing time</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
+                          <span><strong>Resolution:</strong> Market resolves within 1 hour of closing time</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2 flex-shrink-0" />
+                          <span><strong>Payout:</strong> Winners can claim their share of the pool</span>
+                        </div>
+                        </div>
+                      </div>
+
+                    {/* Quick Preset Buttons */}
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Quick Presets</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {[
+                          { label: '1 Hour', hours: 1 },
+                          { label: '3 Hours', hours: 3 },
+                          { label: '6 Hours', hours: 6 },
+                          { label: '12 Hours', hours: 12 },
+                          { label: '1 Day', hours: 24 },
+                          { label: '3 Days', hours: 72 },
+                          { label: '1 Week', hours: 168 },
+                          { label: '1 Month', hours: 720 }
+                        ].map((preset) => (
+                          <Button
+                            key={preset.label}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const now = new Date()
+                              const presetDate = new Date(now.getTime() + (preset.hours * 60 * 60 * 1000))
+                              setClosingDate(presetDate)
+                              setClosingTime(format(presetDate, 'HH:mm'))
+                            }}
+                            className="h-8 text-xs"
+                          >
+                            {preset.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -868,7 +1114,7 @@ function CreateMarketContent() {
                                 </span>
                   </div>
                               <div className="text-xs text-blue-600 mt-1">
-                                @ ${tokenData.current_price.toFixed(6)} per {selectedAsset}
+                                @ ${tokenData.current_price.toFixed(4)} per {selectedAsset}
                               </div>
                             </div>
                           )}
@@ -1096,7 +1342,7 @@ function CreateMarketContent() {
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <div className="text-sm text-muted-foreground mb-1">Current Price</div>
                       <div className="text-lg font-bold">
-                        ${tokenData.current_price?.toFixed(6) || 'N/A'}
+                        ${tokenData.current_price?.toFixed(4) || 'N/A'}
                       </div>
                       {tokenData.price_change_percentage_24h && (
                         <div className={`text-sm ${
@@ -1133,7 +1379,7 @@ function CreateMarketContent() {
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <div className="text-sm text-muted-foreground mb-1">All-Time High</div>
                       <div className="text-lg font-bold">
-                        ${tokenData.ath?.toFixed(6) || 'N/A'}
+                        ${tokenData.ath?.toFixed(4) || 'N/A'}
             </div>
                       {tokenData.ath_date && (
                         <div className="text-sm text-muted-foreground">

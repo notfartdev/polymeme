@@ -77,19 +77,49 @@ export default function MarketsPage() {
   }, [])
 
   // Only show real markets from database
-  const allMarkets = realMarkets.map(market => ({
-    id: market.id,
-    question: market.question,
-    category: "Crypto", // All user-created markets are crypto for now
-    image: null,
-    percentage: 65, // Mock percentage for now
-    volume: "$0", // Mock volume for now
-    asset: market.asset,
-    status: market.status,
-    closingDate: market.closingDate,
-    creator: market.creator,
-    isReal: true
-  }))
+  const allMarkets = realMarkets.map((market, index) => {
+    // Generate varied mock percentages based on market characteristics
+    const getMockPercentage = (market: MarketData, index: number) => {
+      // Use market ID hash to generate consistent but varied percentages
+      const hash = market.id.split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0)
+        return a & a
+      }, 0)
+      
+      // Generate percentage between 25% and 85% based on hash
+      const basePercentage = Math.abs(hash) % 60 + 25
+      
+      // Adjust based on question type for more realism
+      const question = market.question.toLowerCase()
+      let adjustment = 0
+      
+      if (question.includes('pump') || question.includes('reach') || question.includes('hit')) {
+        adjustment = -5 // Slightly lower odds for bullish predictions
+      } else if (question.includes('drop') || question.includes('crash') || question.includes('below')) {
+        adjustment = 5 // Slightly higher odds for bearish predictions
+      } else if (question.includes('1h') || question.includes('3h')) {
+        adjustment = -10 // Lower odds for very short timeframes
+      } else if (question.includes('24h') || question.includes('1d')) {
+        adjustment = 5 // Higher odds for daily predictions
+      }
+      
+      return Math.max(15, Math.min(90, basePercentage + adjustment))
+    }
+
+    return {
+      id: market.id,
+      question: market.question,
+      category: "Crypto", // All user-created markets are crypto for now
+      image: null,
+      percentage: getMockPercentage(market, index),
+      volume: "$0", // Mock volume for now
+      asset: market.asset,
+      status: market.status,
+      closingDate: market.closingDate,
+      creator: market.creator,
+      isReal: true
+    }
+  })
 
   const filteredMarkets = allMarkets.filter((market) => {
     // Filter by active/completed status
@@ -295,16 +325,26 @@ export default function MarketsPage() {
                                 return "Expired"
                               }
                               
-                              const totalHours = Math.floor(diffMs / (1000 * 60 * 60))
-                              const days = Math.floor(totalHours / 24)
-                              const hours = totalHours % 24
+                              const totalMinutes = Math.floor(diffMs / (1000 * 60))
+                              const days = Math.floor(totalMinutes / (24 * 60))
+                              const hours = Math.floor((totalMinutes % (24 * 60)) / 60)
+                              const minutes = totalMinutes % 60
                               
-                              if (days > 0 && hours > 0) {
-                                return `${days}d ${hours}h left`
-                              } else if (days > 0) {
-                                return `${days}d left`
+                              // Format based on remaining time
+                              if (days > 0) {
+                                if (hours > 0) {
+                                  return `${days}d ${hours}h left`
+                                } else {
+                                  return `${days}d left`
+                                }
+                              } else if (hours > 0) {
+                                if (minutes > 0) {
+                                  return `${hours}h ${minutes}m left`
+                                } else {
+                                  return `${hours}h left`
+                                }
                               } else {
-                                return `${hours}h left`
+                                return `${minutes}m left`
                               }
                             })()}
                           </span>

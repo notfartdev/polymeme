@@ -322,7 +322,7 @@ export function MarketCoverflow() {
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                       }}
                     >
-                      {t("yes")} {(market.yesPrice * 100).toFixed(0)}¢
+                      {t("yes")} {(market.yesPrice * 100).toFixed(1)}%
                     </button>
                     <button
                       className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-center rounded-md cursor-pointer transition-all hover:bg-red-50 shadow-lg hover:shadow-red-500/80"
@@ -333,7 +333,7 @@ export function MarketCoverflow() {
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                       }}
                     >
-                      {t("no")} {(market.noPrice * 100).toFixed(0)}¢
+                      {t("no")} {(market.noPrice * 100).toFixed(1)}%
                     </button>
                   </div>
 

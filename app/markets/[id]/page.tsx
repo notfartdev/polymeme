@@ -28,6 +28,8 @@ import { useToast } from "@/hooks/use-toast"
 import { BettingInterface } from "@/components/betting-interface"
 import { RealtimeTokenChart } from "@/components/realtime-token-chart"
 import { TokenNews } from "@/components/token-news"
+import { OrderBook } from "@/components/order-book"
+import { MarketRules } from "@/components/market-rules"
 import { useWallet } from '@solana/wallet-adapter-react'
 
 // Market data interface
@@ -376,11 +378,42 @@ export default function MarketDetailPage() {
                 </div>
               </Card>
 
+            {/* Detailed Market Rules */}
+            <div id="market-rules">
+              <MarketRules
+                question={market.question}
+                tokenSymbol={market.tokenSymbol || "SOL"}
+                timeframe={market.question.includes('1H') ? '1H' :
+                          market.question.includes('3H') ? '3H' :
+                          market.question.includes('6H') ? '6H' :
+                          market.question.includes('12H') ? '12H' :
+                          market.question.includes('24H') ? '24H' : undefined}
+                tokenData={null} // TODO: Add real token data
+              />
+            </div>
+
               <div className="flex gap-3">
-                <Button variant="outline" className="text-green-600 border-green-200 hover:bg-green-50 bg-transparent">
+                <Button 
+                  variant="outline" 
+                  className="text-green-600 border-green-200 hover:bg-green-50 bg-transparent"
+                  onClick={() => {
+                    // Scroll to market rules section
+                    const rulesSection = document.getElementById('market-rules')
+                    if (rulesSection) {
+                      rulesSection.scrollIntoView({ behavior: 'smooth' })
+                    }
+                  }}
+                >
                   View full rules
                 </Button>
-                <Button variant="outline" className="text-green-600 border-green-200 hover:bg-green-50 bg-transparent">
+                <Button 
+                  variant="outline" 
+                  className="text-green-600 border-green-200 hover:bg-green-50 bg-transparent"
+                  onClick={() => {
+                    // Open help center modal or redirect
+                    window.open('https://docs.predictionmarket.com/help', '_blank')
+                  }}
+                >
                   Help center
                 </Button>
               </div>
@@ -398,7 +431,16 @@ export default function MarketDetailPage() {
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
                   <div>
                     <div className="font-medium">Market open</div>
-                    <div className="text-sm text-muted-foreground">Jul 29, 2025 · 1:10am EDT</div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(market.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        timeZoneName: 'short'
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -421,8 +463,7 @@ export default function MarketDetailPage() {
 
               <div className="mt-6 pt-4 border-t border-border">
                 <p className="text-sm text-muted-foreground">
-                  If this event occurs, the market will close the following 10am ET. Otherwise, it closes by{" "}
-                  {market.deadline} at 11:59pm EST.
+                  Market will close at the specified closing time. Resolution occurs within 1 hour of market close.
                 </p>
               </div>
 
@@ -479,7 +520,7 @@ export default function MarketDetailPage() {
                     handleBetClick("yes")
                   }}
                 >
-                  Yes {mainPercentage}¢
+                  Yes
                 </Button>
                 <Button
                   size="lg"
@@ -493,7 +534,7 @@ export default function MarketDetailPage() {
                     handleBetClick("no")
                   }}
                 >
-                  No {oppositePercentage}¢
+                  No
                 </Button>
               </div>
 
@@ -512,7 +553,7 @@ export default function MarketDetailPage() {
                         <Minus className="h-3 w-3" />
                       </Button>
                       <Input
-                        placeholder={`${currentPrice}¢`}
+                        placeholder={`${currentPrice}%`}
                         value={limitPrice}
                         onChange={(e) => setLimitPrice(e.target.value)}
                         className="text-center font-semibold"
@@ -591,6 +632,9 @@ export default function MarketDetailPage() {
                 )}
               </div>
             </Card>
+
+            {/* Order Book */}
+            <OrderBook marketId={market.id} />
 
             {/* News Section */}
             {(() => {

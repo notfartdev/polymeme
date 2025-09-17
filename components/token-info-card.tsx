@@ -11,9 +11,10 @@ interface TokenInfoCardProps {
 export function TokenInfoCard({ tokenData, userBalance }: TokenInfoCardProps) {
   const formatPrice = (price: number) => {
     if (price < 0.000001) return `$${price.toExponential(2)}`
-    if (price < 0.01) return `$${price.toFixed(6)}`
-    if (price < 1) return `$${price.toFixed(4)}`
-    return `$${price.toFixed(2)}`
+    if (price < 0.01) return `$${price.toFixed(4)}`
+    if (price < 1) return `$${price.toFixed(3)}`
+    if (price < 100) return `$${price.toFixed(2)}`
+    return `$${price.toFixed(0)}`
   }
 
   const formatMarketCap = (marketCap: number) => {

@@ -1,23 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { smartContractService } from '@/lib/smart-contract'
+
+// Mock token balance checker - in real implementation, this would query Solana
+async function checkTokenBalance(walletAddress: string, tokenMint: string) {
+  // Simulate different balances based on wallet address
+  const walletHash = walletAddress.slice(-4)
+  const baseBalance = parseInt(walletHash, 16) * 1000 // Convert last 4 chars to number
+  
+  // Add some randomness
+  const randomFactor = Math.random() * 0.5 + 0.75 // 0.75 to 1.25
+  const balance = Math.floor(baseBalance * randomFactor)
+  
+  return {
+    balance,
+    hasBalance: balance > 0,
+    sufficientForBet: balance >= 100
+  }
+}
+
+interface PlaceBetRequest {
+  marketId: string
+  amount: number
+  side: 'yes' | 'no'
+  walletAddress: string
+  tokenMint: string
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { marketId, betSide, amount, tokenMint, tokenAmount, walletAddress } = body
+    const body: PlaceBetRequest = await request.json()
+    const { marketId, amount, side, walletAddress, tokenMint } = body
 
     // Validate required fields
-    if (!marketId || !betSide || !amount || !tokenMint || !tokenAmount || !walletAddress) {
+    if (!marketId || !amount || !side || !walletAddress || !tokenMint) {
       return NextResponse.json(
         { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
-
-    // Validate bet side
-    if (!['yes', 'no'].includes(betSide)) {
-      return NextResponse.json(
-        { error: 'Invalid bet side. Must be "yes" or "no"' },
         { status: 400 }
       )
     }
@@ -25,190 +42,69 @@ export async function POST(request: NextRequest) {
     // Validate amount
     if (amount <= 0) {
       return NextResponse.json(
-        { error: 'Bet amount must be greater than 0' },
+        { error: 'Amount must be greater than 0' },
         { status: 400 }
       )
     }
 
-    // Get user by wallet address
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('wallet_address', walletAddress)
-      .single()
-
-    if (userError || !user) {
+    // Validate side
+    if (side !== 'yes' && side !== 'no') {
       return NextResponse.json(
-        { error: 'User not found. Please ensure your wallet is connected.' },
-        { status: 404 }
-      )
-    }
-
-    // Verify market exists
-    const { data: market, error: marketError } = await supabase
-      .from('markets')
-      .select('id, status, token_mint')
-      .eq('id', marketId)
-      .single()
-
-    if (marketError || !market) {
-      return NextResponse.json(
-        { error: 'Market not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check if market is still active
-    if (market.status !== 'active') {
-      return NextResponse.json(
-        { error: 'This market is no longer accepting bets' },
+        { error: 'Side must be either "yes" or "no"' },
         { status: 400 }
       )
     }
 
-    // Verify token matches market requirement
-    if (market.token_mint && market.token_mint !== tokenMint) {
-      return NextResponse.json(
-        { error: 'Invalid token for this market' },
-        { status: 400 }
-      )
-    }
+    // Check token balance before allowing bet
+    try {
+      // Simulate token balance check (in real implementation, this would query Solana)
+      const mockBalance = await checkTokenBalance(walletAddress, tokenMint)
+      
+      if (!mockBalance.hasBalance) {
+        return NextResponse.json(
+          { error: 'Insufficient token balance' },
+          { status: 400 }
+        )
+      }
 
-    // Create the bet
-    const { data: bet, error: betError } = await supabase
-      .from('bets')
-      .insert({
-        user_id: user.id,
-        market_id: marketId,
-        bet_side: betSide,
-        amount: amount,
-        token_mint: tokenMint,
-        token_amount: tokenAmount,
-        status: 'active'
-      })
-      .select()
-      .single()
-
-    if (betError) {
-      console.error('Error creating bet:', betError)
+      if (amount > mockBalance.balance) {
+        return NextResponse.json(
+          { error: `Insufficient balance. You have ${mockBalance.balance} tokens but trying to bet ${amount}` },
+          { status: 400 }
+        )
+      }
+    } catch (error) {
+      console.error('Error checking token balance:', error)
       return NextResponse.json(
-        { error: 'Failed to place bet' },
+        { error: 'Failed to verify token balance' },
         { status: 500 }
       )
     }
 
-    // Update market betting stats
-    const updateField = betSide === 'yes' ? 'total_yes_bets' : 'total_no_bets'
-    
-    // First, get current market stats
-    const { data: currentMarket, error: fetchError } = await supabase
-      .from('markets')
-      .select(`${updateField}, total_volume`)
-      .eq('id', marketId)
-      .single()
+    // TODO: In real implementation, this would:
+    // 1. Validate wallet signature
+    // 2. Check user has sufficient token balance
+    // 3. Call smart contract to place bet
+    // 4. Return transaction signature
 
-    if (fetchError) {
-      console.error('Error fetching market stats:', fetchError)
-    } else {
-      // Update market stats with calculated values
-      const { error: marketUpdateError } = await supabase
-        .from('markets')
-        .update({
-          [updateField]: (currentMarket[updateField] || 0) + 1,
-          total_volume: (currentMarket.total_volume || 0) + amount
-        })
-        .eq('id', marketId)
-
-      if (marketUpdateError) {
-        console.error('Error updating market stats:', marketUpdateError)
-        // Don't fail the bet creation for this
-      }
-    }
+    // For now, simulate successful bet placement
+    const result = await smartContractService.placeBet(
+      {} as any, // Mock wallet - in real implementation, this would be the actual wallet
+      marketId,
+      amount,
+      side
+    )
 
     return NextResponse.json({
       success: true,
-      bet: {
-        id: bet.id,
-        marketId: bet.market_id,
-        betSide: bet.bet_side,
-        amount: bet.amount,
-        tokenMint: bet.token_mint,
-        tokenAmount: bet.token_amount,
-        status: bet.status,
-        createdAt: bet.created_at
-      }
+      transactionSignature: result.transactionSignature,
+      message: `Bet placed: ${amount} tokens on ${side.toUpperCase()}`
     })
 
   } catch (error) {
-    console.error('Error in /api/bets POST:', error)
+    console.error('Error placing bet:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const marketId = searchParams.get('marketId')
-    const walletAddress = searchParams.get('walletAddress')
-
-    let query = supabase
-      .from('bets')
-      .select(`
-        id,
-        bet_side,
-        amount,
-        token_mint,
-        token_amount,
-        outcome,
-        pnl,
-        status,
-        created_at,
-        settled_at,
-        markets (
-          id,
-          question,
-          status
-        )
-      `)
-
-    if (marketId) {
-      query = query.eq('market_id', marketId)
-    }
-
-    if (walletAddress) {
-      // Get user by wallet address first
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('wallet_address', walletAddress)
-        .single()
-
-      if (user) {
-        query = query.eq('user_id', user.id)
-      } else {
-        return NextResponse.json({ bets: [] })
-      }
-    }
-
-    const { data: bets, error } = await query.order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching bets:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch bets' },
-        { status: 500 }
-      )
-    }
-
-    return NextResponse.json({ bets: bets || [] })
-
-  } catch (error) {
-    console.error('Error in /api/bets GET:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to place bet' },
       { status: 500 }
     )
   }

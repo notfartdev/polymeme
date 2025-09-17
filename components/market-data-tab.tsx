@@ -166,7 +166,7 @@ export function MarketDataTab({ asset, tokenMint }: MarketDataTabProps) {
   const formatPrice = (price: number | undefined) => {
     if (!price || isNaN(price)) return "$0.00"
     if (price < 0.000001) return `$${price.toExponential(2)}`
-    if (price < 0.01) return `$${price.toFixed(6)}`
+    if (price < 0.01) return `$${price.toFixed(4)}`
     if (price < 1) return `$${price.toFixed(4)}`
     return `$${price.toFixed(2)}`
   }
