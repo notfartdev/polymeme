@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Line, LineChart, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts"
 import { TrendingUp, TrendingDown, RefreshCw } from "lucide-react"
 import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
@@ -31,7 +32,7 @@ export function RealtimeTokenChart({ tokenSymbol, tokenName, tokenLogo }: Realti
   const fetchTokenData = useCallback(async () => {
     try {
       setError(null)
-      const data = await CoinGeckoAPI.getTokenData(tokenSymbol)
+      const data = await CoinGeckoAPI.getTokenDataBySymbol(tokenSymbol)
       
       if (data) {
         setTokenData(data)

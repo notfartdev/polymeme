@@ -237,25 +237,42 @@ export function MarketCoverflow() {
   const getCardStyle = (index: number) => {
     const distance = Math.abs(index - currentIndex)
     const isCenter = index === currentIndex
+    
+    // Mobile: smaller spacing and no 3D rotation
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+    const cardSpacing = isMobile ? 240 : 320
+    const rotation = isMobile ? 0 : (index - currentIndex) * -25
+    const translateZ = isMobile ? 0 : (isCenter ? 0 : -100)
+    
+    // Limit the number of visible cards to prevent overflow
+    const maxVisibleDistance = isMobile ? 1 : 2
+    if (distance > maxVisibleDistance) {
+      return {
+        transform: `translateX(${(index - currentIndex) * cardSpacing}px) scale(0) rotateY(${rotation}deg) translateZ(${translateZ}px)`,
+        opacity: 0,
+        zIndex: 0,
+        pointerEvents: 'none' as const,
+      }
+    }
 
     return {
       transform: `
-        translateX(${(index - currentIndex) * 320}px) 
-        rotateY(${(index - currentIndex) * -25}deg) 
+        translateX(${(index - currentIndex) * cardSpacing}px) 
+        rotateY(${rotation}deg) 
         scale(${isCenter ? 1 : 0.8})
-        translateZ(${isCenter ? 0 : -100}px)
+        translateZ(${translateZ}px)
       `,
-      opacity: distance > 2 ? 0 : isCenter ? 1 : 0.6,
+      opacity: distance > maxVisibleDistance ? 0 : isCenter ? 1 : 0.6,
       zIndex: isCenter ? 10 : 10 - distance,
     }
   }
 
   return (
-    <div className="relative w-full h-[500px] bg-gradient-to-b from-background to-muted/20 px-40">
+    <div className="relative w-full h-[400px] sm:h-[450px] md:h-[500px] bg-gradient-to-b from-background to-muted/20 px-4 sm:px-8 md:px-20 lg:px-40 overflow-hidden">
       <div className="absolute inset-0 flex items-center justify-center perspective-1000">
         <div
           ref={containerRef}
-          className="relative w-full h-full flex items-center justify-center"
+          className="relative w-full h-full flex items-center justify-center overflow-hidden"
           style={{ perspective: "1000px" }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -265,11 +282,11 @@ export function MarketCoverflow() {
           {mockMarkets.map((market, index) => (
             <Card
               key={market.id}
-              className="absolute w-80 h-96 cursor-pointer transition-all duration-500 ease-out hover:shadow-xl border-2 hover:border-primary/50"
+              className="absolute w-72 sm:w-80 h-80 sm:h-96 cursor-pointer transition-all duration-500 ease-out hover:shadow-xl border-2 hover:border-primary/50"
               style={getCardStyle(index)}
               onClick={() => setCurrentIndex(index)}
             >
-              <CardContent className="p-7 h-full flex flex-col justify-between">
+              <CardContent className="p-4 sm:p-6 md:p-7 h-full flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <Badge variant="secondary" className="text-xs bg-violet-400 text-white hover:bg-violet-500">
@@ -287,17 +304,17 @@ export function MarketCoverflow() {
                     </div>
                   </div>
 
-                  <h3 className="font-semibold text-lg text-card-foreground mb-2 line-clamp-2 text-balance">
+                  <h3 className="font-semibold text-base sm:text-lg text-card-foreground mb-2 line-clamp-2 text-balance">
                     {locale === "zh" && market.title_zh ? market.title_zh : market.title}
                   </h3>
 
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{locale === "zh" && market.description_zh ? market.description_zh : market.description}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-4 line-clamp-2">{locale === "zh" && market.description_zh ? market.description_zh : market.description}</p>
                 </div>
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      className="px-3 py-2 text-sm font-medium text-center rounded-md cursor-pointer transition-all hover:opacity-90 text-white shadow-lg hover:shadow-green-500/80"
+                      className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-center rounded-md cursor-pointer transition-all hover:opacity-90 text-white shadow-lg hover:shadow-green-500/80"
                       style={{
                         backgroundColor: "#10b981",
                         color: "#ffffff",
@@ -308,7 +325,7 @@ export function MarketCoverflow() {
                       {t("yes")} {(market.yesPrice * 100).toFixed(0)}¢
                     </button>
                     <button
-                      className="px-3 py-2 text-sm font-medium text-center rounded-md cursor-pointer transition-all hover:bg-red-50 shadow-lg hover:shadow-red-500/80"
+                      className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-center rounded-md cursor-pointer transition-all hover:bg-red-50 shadow-lg hover:shadow-red-500/80"
                       style={{
                         backgroundColor: "#ffffff",
                         color: "#dc2626",
@@ -323,12 +340,14 @@ export function MarketCoverflow() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Users className="w-3 h-3" />
-                      <span className="text-foreground">{market.participants.toLocaleString()}</span>
+                      <span className="text-foreground hidden sm:inline">{market.participants.toLocaleString()}</span>
+                      <span className="text-foreground sm:hidden">{Math.floor(market.participants / 1000)}k</span>
                     </div>
                     <div className="font-medium text-foreground">{market.volume}</div>
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      <span className="text-foreground">{market.endDate}</span>
+                      <span className="text-foreground hidden sm:inline">{market.endDate}</span>
+                      <span className="text-foreground sm:hidden">{market.endDate.split(',')[0]}</span>
                     </div>
                   </div>
                 </div>
@@ -339,7 +358,7 @@ export function MarketCoverflow() {
       </div>
 
       {/* Indicators */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-4 sm:bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
         {mockMarkets.map((_, index) => (
           <button
             key={index}

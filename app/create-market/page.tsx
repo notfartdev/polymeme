@@ -17,7 +17,7 @@ import Header from "@/components/header"
 import { useI18n } from "@/lib/i18n"
 import { marketApi, handleApiError, CreateMarketRequest } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
 import { TokenInfoCard } from "@/components/token-info-card"
 import { useWallet } from '@solana/wallet-adapter-react'
@@ -218,6 +218,7 @@ export default function CreateMarketPage() {
   const { t } = useI18n()
   const { toast } = useToast()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { publicKey } = useWallet()
   const { assets: walletAssets, loading: assetsLoading } = useWalletAssets()
   
@@ -242,6 +243,18 @@ export default function CreateMarketPage() {
   const [isAnimating, setIsAnimating] = useState(false)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const calendarRef = useRef<HTMLDivElement>(null)
+
+  // Handle URL parameters for pre-filling form
+  useEffect(() => {
+    const tokenParam = searchParams.get('token')
+    const nameParam = searchParams.get('name')
+    
+    if (tokenParam) {
+      setSelectedAsset(tokenParam.toUpperCase())
+      // If we have a name parameter, we could use it for additional context
+      // For now, we'll just set the asset and let the token data loading handle the rest
+    }
+  }, [searchParams])
 
   const selectedToken = walletAssets.find(asset => asset.symbol === selectedAsset)
   const questionSuggestions = getSmartSuggestions(tokenData, selectedAsset)

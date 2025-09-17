@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Search, TrendingUp, Hash, Clock, Users, Heart } from "lucide-react"
+import { TrendingUp, Hash, Clock, Users, Heart } from "lucide-react"
 import Header from "@/components/header"
 import Link from "next/link"
 import { useI18n } from "@/lib/i18n"
@@ -40,7 +39,6 @@ const mockMarkets: any[] = []
 export default function MarketsPage() {
   const { t } = useI18n()
   const [selectedCategory, setSelectedCategory] = useState("Active")
-  const [searchQuery, setSearchQuery] = useState("")
   const [realMarkets, setRealMarkets] = useState<MarketData[]>([])
   const [loading, setLoading] = useState(true)
   const [tokenImages, setTokenImages] = useState<Record<string, string>>({})
@@ -100,8 +98,7 @@ export default function MarketsPage() {
     const isActive = closingDate.getTime() > now.getTime()
     
     const matchesCategory = selectedCategory === "Active" ? isActive : !isActive
-    const matchesSearch = market.question.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesCategory && matchesSearch
+    return matchesCategory
   })
 
   return (
@@ -113,17 +110,6 @@ export default function MarketsPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-foreground">{t("markets_heading")}</h1>
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder={t("search_markets")}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-80"
-                />
-              </div>
-            </div>
           </div>
 
           {/* Category Navigation */}
@@ -159,7 +145,7 @@ export default function MarketsPage() {
             </div>
             <h3 className="text-lg font-semibold mb-2">No markets found</h3>
             <p className="text-muted-foreground mb-4">
-              {searchQuery ? "Try adjusting your search terms" : "Be the first to create a market!"}
+              Be the first to create a market!
             </p>
             <Link href="/create-market">
               <Button>Create Market</Button>

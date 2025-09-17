@@ -2,17 +2,25 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Wallet, User, Bell, TrendingUp, DollarSign, Clock, X } from "lucide-react"
+import { Search, Wallet, User, Bell, TrendingUp, DollarSign, Clock, X, TrendingUp as TrendingIcon } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useI18n } from "@/lib/i18n"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { WalletConnect } from "@/components/wallet-connect"
 import { WalletAwareLink } from "@/components/wallet-aware-link"
+import { SearchResult } from "@/lib/coingecko"
 
 export function Header() {
   const { t, locale, setLocale } = useI18n()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const searchTimeoutRef = useRef<NodeJS.Timeout>()
+  const searchRef = useRef<HTMLDivElement>(null)
+  
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -62,15 +70,86 @@ export function Header() {
     setNotifications((prev) => prev.filter((n) => n.id !== id))
   }
 
+  // Search functionality
+  const handleSearch = async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([])
+      setIsSearchOpen(false)
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setSearchResults(data.results || [])
+        setIsSearchOpen(true)
+      }
+    } catch (error) {
+      console.error('Search error:', error)
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchQuery(value)
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      handleSearch(value)
+    }, 300)
+  }
+
+  const handleSearchResultClick = (result: SearchResult) => {
+    setSearchQuery("")
+    setSearchResults([])
+    setIsSearchOpen(false)
+    // Navigate to token detail page
+    window.location.href = `/token/${result.symbol.toLowerCase()}`
+  }
+
+  // Close search when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [])
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16 items-center justify-between px-6 w-full">
-        <div className="flex items-center gap-8">
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6 w-full">
+        <div className="flex items-center gap-4 sm:gap-8">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">P</span>
             </div>
-            <span className="font-bold text-xl text-primary">PredictMarket</span>
+            <span className="font-bold text-lg sm:text-xl text-primary hidden sm:block">PredictMarket</span>
+            <span className="font-bold text-lg sm:text-xl text-primary sm:hidden">PM</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
@@ -92,10 +171,67 @@ export function Header() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative hidden md:block">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="relative hidden lg:block" ref={searchRef}>
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input placeholder={t("search_placeholder")} className="pl-10 w-48" />
+            <Input 
+              placeholder={t("search_placeholder")} 
+              className="pl-10 w-64" 
+              value={searchQuery}
+              onChange={handleSearchInputChange}
+              onFocus={() => searchResults.length > 0 && setIsSearchOpen(true)}
+            />
+            
+            {/* Search Results Dropdown */}
+            {isSearchOpen && (
+              <div className="absolute top-full left-0 mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-80 overflow-y-auto min-w-80 w-max">
+                {isSearching ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto mb-2"></div>
+                    Searching...
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <div className="py-2">
+                    <div className="px-4 py-2 text-xs text-muted-foreground border-b border-border/50">
+                      Click any coin to create a prediction market
+                    </div>
+                    {searchResults.map((result) => (
+                      <button
+                        key={result.id}
+                        className="w-full px-4 py-3 text-left hover:bg-muted/50 flex items-center gap-3 min-w-0"
+                        onClick={() => handleSearchResultClick(result)}
+                      >
+                        {result.thumb && (
+                          <img 
+                            src={result.thumb} 
+                            alt={result.name}
+                            className="w-6 h-6 rounded-full flex-shrink-0"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                            {result.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                            <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">
+                              {result.symbol.toUpperCase()}
+                            </span>
+                            {result.market_cap_rank && (
+                              <span>Rank #{result.market_cap_rank}</span>
+                            )}
+                          </div>
+                        </div>
+                        <TrendingIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                ) : searchQuery.length >= 2 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    No coins found for "{searchQuery}"
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <WalletConnect />
@@ -188,7 +324,7 @@ export function Header() {
           </DropdownMenu>
 
           <Button variant="ghost" size="sm" onClick={() => setLocale(locale === "en" ? "zh" : "en")}
-            className="px-2">
+            className="px-2 hidden sm:flex">
             {locale === "en" ? "中文" : "EN"}
           </Button>
 

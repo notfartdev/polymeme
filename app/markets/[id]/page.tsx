@@ -25,7 +25,6 @@ import Header from "@/components/header"
 import { format } from "date-fns"
 import { useI18n } from "@/lib/i18n"
 import { useToast } from "@/hooks/use-toast"
-import { MarketDataTab } from "@/components/market-data-tab"
 import { BettingInterface } from "@/components/betting-interface"
 import { RealtimeTokenChart } from "@/components/realtime-token-chart"
 import { TokenNews } from "@/components/token-news"
@@ -72,7 +71,6 @@ export default function MarketDetailPage() {
   const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes")
   const [limitPrice, setLimitPrice] = useState("")
   const [shares, setShares] = useState(0)
-  const [activeTab, setActiveTab] = useState<"market" | "data">("market")
   const [isBettingOpen, setIsBettingOpen] = useState(false)
   const [selectedBetSide, setSelectedBetSide] = useState<'yes' | 'no' | null>(null)
   const [isBookmarked, setIsBookmarked] = useState(false)
@@ -179,22 +177,12 @@ export default function MarketDetailPage() {
     )
   }
 
-  // Calculate percentages based on betting volume (what people actually paid)
-  // For now, we'll use a simple calculation. In a real system, you'd track YES/NO volume separately
-  const totalVolume = market?.totalVolume || 0
+  // Calculate percentages for betting interface
   const totalBets = (market?.totalYesBets || 0) + (market?.totalNoBets || 0)
-  
-  // If we have volume data, use it. Otherwise fall back to bet count ratio
   let mainPercentage = 50 // Default 50/50
-  if (totalVolume > 0) {
-    // For now, assume volume is distributed based on bet counts
-    // In a real system, you'd track YES volume vs NO volume separately
-    const yesBetRatio = totalBets > 0 ? (market?.totalYesBets || 0) / totalBets : 0.5
-    mainPercentage = Math.round(yesBetRatio * 100)
-  } else if (totalBets > 0) {
+  if (totalBets > 0) {
     mainPercentage = Math.round(((market?.totalYesBets || 0) / totalBets) * 100)
   }
-  
   const oppositePercentage = 100 - mainPercentage
 
   const currentPrice = selectedOutcome === "yes" ? mainPercentage : oppositePercentage
@@ -317,80 +305,14 @@ export default function MarketDetailPage() {
               </div>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex border-b border-border">
-              <button
-                onClick={() => setActiveTab("market")}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "market"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Market Details
-              </button>
-              <button
-                onClick={() => setActiveTab("data")}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "data"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Market Data
-              </button>
-            </div>
 
-            {/* Tab Content */}
-            {activeTab === "market" ? (
-              <>
-                {/* Real-time Token Price Chart */}
-                <RealtimeTokenChart 
-                  tokenSymbol={market.tokenSymbol || "SOL"}
-                  tokenName={market.tokenName}
-                  tokenLogo={market.tokenLogo}
-                />
+            {/* Real-time Token Price Chart */}
+            <RealtimeTokenChart 
+              tokenSymbol={market.tokenSymbol || "SOL"}
+              tokenName={market.tokenName}
+              tokenLogo={market.tokenLogo}
+            />
 
-
-            {/* Market Data */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Market Data</h3>
-              
-              {/* Volume-Based Odds */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{mainPercentage}%</div>
-                    <div className="text-sm text-green-800 font-medium">YES Odds</div>
-                    <div className="text-xs text-green-700 mt-1">Based on betting volume</div>
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{oppositePercentage}%</div>
-                    <div className="text-sm text-red-800 font-medium">NO Odds</div>
-                    <div className="text-xs text-red-700 mt-1">Based on betting volume</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Market Stats */}
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-foreground">{market.totalYesBets || 0}</div>
-                  <div className="text-sm text-muted-foreground">YES Bets</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-foreground">{market.totalNoBets || 0}</div>
-                  <div className="text-sm text-muted-foreground">NO Bets</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-foreground">${market.totalVolume || 0}</div>
-                  <div className="text-sm text-muted-foreground">Total Volume</div>
-                </div>
-              </div>
-            </Card>
 
 
             {/* Rules Summary */}
@@ -515,10 +437,6 @@ export default function MarketDetailPage() {
                 </div>
               </div>
             </Card>
-              </>
-            ) : (
-              <MarketDataTab asset={market.asset} tokenMint={market.tokenMint} />
-            )}
           </div>
 
           {/* Trading Panel */}

@@ -29,6 +29,22 @@ export interface TokenData {
   max_supply?: number
 }
 
+export interface SearchResult {
+  id: string
+  name: string
+  symbol: string
+  market_cap_rank?: number
+  thumb?: string
+  large?: string
+}
+
+export interface SearchResponse {
+  coins: SearchResult[]
+  exchanges: any[]
+  categories: any[]
+  nfts: any[]
+}
+
 export interface CoinGeckoResponse {
   [key: string]: TokenData
 }
@@ -45,6 +61,7 @@ const TOKEN_COINGECKO_MAP: Record<string, string> = {
   'SOL': 'solana',
   'BTC': 'bitcoin',
   'ETH': 'ethereum',
+  'USELESS': 'useless',
 }
 
 export class CoinGeckoAPI {
@@ -84,6 +101,49 @@ export class CoinGeckoAPI {
       } catch (error) {
         console.error(`❌ CoinGecko Free API also failed for ${symbol}:`, error)
       }
+    }
+
+    return null
+  }
+
+  // Get token data by symbol dynamically (searches for any token)
+  static async getTokenDataBySymbol(symbol: string): Promise<TokenData | null> {
+    // First try the predefined mapping
+    const predefinedData = await this.getTokenData(symbol)
+    if (predefinedData) {
+      return predefinedData
+    }
+
+    // If not found in predefined mapping, search for it dynamically
+    try {
+      console.log(`🔍 Searching for ${symbol} dynamically...`)
+      
+      // Search for the token using CoinGecko search API
+      const searchResults = await this.searchCoins(symbol)
+      
+      // Find exact symbol match (case insensitive)
+      const exactMatch = searchResults.find(result => 
+        result.symbol.toUpperCase() === symbol.toUpperCase()
+      )
+      
+      if (exactMatch) {
+        console.log(`✅ Found ${symbol} with ID: ${exactMatch.id}`)
+        
+        // Now fetch detailed data using the found ID
+        try {
+          const detailedData = await this.fetchFromFallbackAPI(exactMatch.id)
+          if (detailedData) {
+            console.log(`✅ Fetched detailed data for ${symbol}`)
+            return detailedData
+          }
+        } catch (error) {
+          console.error(`❌ Failed to fetch detailed data for ${symbol}:`, error)
+        }
+      } else {
+        console.warn(`❌ No exact match found for symbol: ${symbol}`)
+      }
+    } catch (error) {
+      console.error(`❌ Error searching for ${symbol}:`, error)
     }
 
     return null
@@ -169,6 +229,60 @@ export class CoinGeckoAPI {
     }
     
     return results
+  }
+
+  // Search for coins using CoinGecko search API
+  static async searchCoins(query: string): Promise<SearchResult[]> {
+    if (!query || query.length < 2) {
+      return []
+    }
+
+    try {
+      // Use free API for search (no rate limits for search)
+      const url = `${this.FALLBACK_BASE_URL}/search?query=${encodeURIComponent(query)}`
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`CoinGecko search API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data: SearchResponse = await response.json()
+      
+      // Return only coins, limit to top 10 results
+      return data.coins.slice(0, 10)
+    } catch (error) {
+      console.error('Error searching coins:', error)
+      return []
+    }
+  }
+
+  // Get trending coins
+  static async getTrendingCoins(): Promise<SearchResult[]> {
+    try {
+      const url = `${this.FALLBACK_BASE_URL}/search/trending`
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`CoinGecko trending API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      // Extract coins from trending data
+      return data.coins?.map((item: any) => ({
+        id: item.item.id,
+        name: item.item.name,
+        symbol: item.item.symbol,
+        market_cap_rank: item.item.market_cap_rank,
+        thumb: item.item.thumb,
+        large: item.item.large
+      })) || []
+    } catch (error) {
+      console.error('Error fetching trending coins:', error)
+      return []
+    }
   }
 
   // Generate smart suggestions based on token data
