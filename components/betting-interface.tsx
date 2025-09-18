@@ -57,6 +57,13 @@ export function BettingInterface({
     yesPool: { totalTokens: number; totalBets: number }
     noPool: { totalTokens: number; totalBets: number }
   } | null>(null)
+  const [marketState, setMarketState] = useState<'OPEN' | 'CLOSED' | 'RESOLVED' | 'INVALID'>('OPEN')
+  const [timeRemaining, setTimeRemaining] = useState<{
+    days: number
+    hours: number
+    minutes: number
+    seconds: number
+  } | null>(null)
 
   // Find the required token in user's wallet
   useEffect(() => {
@@ -121,27 +128,76 @@ export function BettingInterface({
     }
   }
 
-  // Fetch pool data
+  // Fetch market data and pool data with real-time updates
   useEffect(() => {
-    const fetchPoolData = async () => {
+    const fetchMarketData = async () => {
       try {
-        const response = await fetch(`/api/markets/${marketId}/pool`)
-        if (response.ok) {
-          const data = await response.json()
+        // Fetch market data for closing time
+        const marketResponse = await fetch(`/api/markets/${marketId}`)
+        if (marketResponse.ok) {
+          const marketData = await marketResponse.json()
+          const closingTime = new Date(marketData.closingDate).getTime()
+          const now = Date.now()
+          
+          // Update market state based on time
+          if (now >= closingTime) {
+            setMarketState('CLOSED')
+          } else {
+            setMarketState('OPEN')
+          }
+        }
+
+        // Fetch pool data
+        const poolResponse = await fetch(`/api/markets/${marketId}/pool`)
+        if (poolResponse.ok) {
+          const poolData = await poolResponse.json()
           setPoolData({
-            yesPool: data.yesPool,
-            noPool: data.noPool
+            yesPool: poolData.yesPool,
+            noPool: poolData.noPool
           })
         }
       } catch (error) {
-        console.error('Error fetching pool data:', error)
+        console.error('Error fetching market data:', error)
       }
     }
 
-    fetchPoolData()
+    // Initial fetch
+    fetchMarketData()
     
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchPoolData, 30000)
+    // Real-time updates every 3 seconds
+    const interval = setInterval(fetchMarketData, 3000)
+    return () => clearInterval(interval)
+  }, [marketId])
+
+  // Countdown timer
+  useEffect(() => {
+    const updateCountdown = async () => {
+      try {
+        const response = await fetch(`/api/markets/${marketId}`)
+        if (response.ok) {
+          const marketData = await response.json()
+          const closingTime = new Date(marketData.closingDate).getTime()
+          const now = Date.now()
+          const diff = closingTime - now
+
+          if (diff > 0) {
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+            setTimeRemaining({ days, hours, minutes, seconds })
+          } else {
+            setTimeRemaining(null)
+          }
+        }
+      } catch (error) {
+        console.error('Error updating countdown:', error)
+      }
+    }
+
+    updateCountdown()
+    const interval = setInterval(updateCountdown, 1000)
     return () => clearInterval(interval)
   }, [marketId])
 
@@ -159,30 +215,31 @@ export function BettingInterface({
     return usdAmount / tokenPrice
   }
 
-  // Calculate bet outcomes using pool-based system
+  // Calculate bet outcomes using proper pari-mutuel system
   const calculateBetOutcome = () => {
     if (!selectedSide || !betAmount || !tokenBalance || !poolData) return null
     
     const betAmountNum = parseFloat(betAmount)
     const betUsdValue = parseFloat(usdAmount) || convertToUSD(betAmountNum)
     
-    // Get current pool totals
+    // Get current pool totals (in tokens)
     const totalPool = poolData.yesPool.totalTokens + poolData.noPool.totalTokens
     const currentOdds = poolData[selectedSide + 'Pool'].totalTokens / totalPool
     
-    // Calculate your share of the winning pool
+    // Calculate your share of the winning side (after your bet is added)
     const yourPoolSide = poolData[selectedSide + 'Pool']
     const yourShare = betAmountNum / (yourPoolSide.totalTokens + betAmountNum)
     
-    // Calculate potential winnings (total pool * your share)
-    const totalPayout = (totalPool + betAmountNum) * yourShare
-    const profit = totalPayout - betUsdValue
+    // Calculate potential winnings: total pool * your share (proper pari-mutuel)
+    const totalPayoutTokens = totalPool * yourShare
+    const totalPayoutUsd = convertToUSD(totalPayoutTokens)
+    const profit = totalPayoutUsd - betUsdValue
     
     return {
       betAmount: betUsdValue,
       odds: currentOdds,
       oddsPercentage: (currentOdds * 100).toFixed(1),
-      totalPayout,
+      totalPayout: totalPayoutUsd,
       profit,
       totalCost: betUsdValue,
       poolInfo: {
@@ -311,31 +368,54 @@ export function BettingInterface({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Place Your Bet</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Place Your Bet</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Market Info */}
-          <div className="p-3 bg-muted rounded-lg">
-            <h3 className="font-semibold text-sm mb-1">Market</h3>
-            <p className="text-sm text-muted-foreground">{marketTitle}</p>
-            <div className="flex items-center gap-2 mt-2">
+          {/* Market Status */}
+          <div className="p-4 bg-muted/50 rounded-lg border">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm text-foreground">Market Status</h3>
+              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                marketState === 'OPEN' ? 'bg-green-100 text-green-800' :
+                marketState === 'CLOSED' ? 'bg-red-100 text-red-800' :
+                marketState === 'RESOLVED' ? 'bg-blue-100 text-blue-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {marketState}
+              </div>
+            </div>
+            
+            {/* Countdown Timer */}
+            {timeRemaining && marketState === 'OPEN' && (
+              <div className="mb-3 p-3 bg-background rounded-lg border">
+                <div className="text-xs text-muted-foreground mb-2 font-medium">Time Remaining</div>
+                <div className="flex gap-3 text-sm font-mono font-semibold">
+                  {timeRemaining.days > 0 && <span className="text-blue-600">{timeRemaining.days}d</span>}
+                  <span className="text-green-600">{timeRemaining.hours}h</span>
+                  <span className="text-orange-600">{timeRemaining.minutes}m</span>
+                  <span className="text-red-600">{timeRemaining.seconds}s</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mt-3">
               {requiredTokenLogo && (
-                <img src={requiredTokenLogo} alt={requiredTokenSymbol} className="w-4 h-4 rounded-full" />
+                <img src={requiredTokenLogo} alt={requiredTokenSymbol} className="w-5 h-5 rounded-full" />
               )}
-              <span className="text-xs text-muted-foreground">
+              <span className="text-sm font-medium text-foreground">
                 {requiredTokenSymbol} {requiredTokenName && `(${requiredTokenName})`}
               </span>
             </div>
-            <div className="mt-2 text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
-              Contract:{" "}
+            <div className="mt-3 text-xs text-muted-foreground font-mono bg-background p-3 rounded-lg border">
+              <span className="font-medium">Contract:</span>{" "}
               <a 
                 href={`https://solscan.io/token/${requiredTokenMint}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline"
+                className="text-blue-600 hover:text-blue-800 underline break-all"
               >
                 {requiredTokenMint.slice(0, 8)}...{requiredTokenMint.slice(-8)}
               </a>
@@ -378,19 +458,19 @@ export function BettingInterface({
           ) : (
             <>
               {/* Token Balance */}
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
+              <Card className="p-5 border-2">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
                     {tokenBalance.logo && (
-                      <img src={tokenBalance.logo} alt={tokenBalance.symbol} className="w-6 h-6 rounded-full" />
+                      <img src={tokenBalance.logo} alt={tokenBalance.symbol} className="w-7 h-7 rounded-full" />
                     )}
-                    <span className="font-semibold">{tokenBalance.symbol} Balance</span>
+                    <span className="font-semibold text-lg">{tokenBalance.symbol} Balance</span>
                   </div>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-lg font-bold text-green-600">
                     ${tokenBalance.value.toFixed(2)}
                   </span>
                 </div>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold mb-2">
                   {tokenBalance.balance.toFixed(4)} {tokenBalance.symbol}
                 </div>
                 <div className="text-sm text-muted-foreground">
@@ -399,26 +479,43 @@ export function BettingInterface({
               </Card>
 
               {/* Bet Side Selection */}
-              <div className="space-y-2">
-                <Label>Choose Your Position</Label>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Choose Your Position</Label>
+                <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant={selectedSide === 'yes' ? 'default' : 'outline'}
                     onClick={() => handleBetClick('yes')}
-                    className="h-12"
+                    disabled={marketState !== 'OPEN'}
+                    className={`h-14 text-lg font-bold ${
+                      selectedSide === 'yes' 
+                        ? 'bg-green-600 hover:bg-green-700 text-white' 
+                        : 'border-green-200 text-green-700 hover:bg-green-50'
+                    }`}
                   >
-                    <CheckCircle className="h-4 w-4 mr-2" />
+                    <CheckCircle className="h-5 w-5 mr-2" />
                     YES
                   </Button>
                   <Button
                     variant={selectedSide === 'no' ? 'default' : 'outline'}
                     onClick={() => handleBetClick('no')}
-                    className="h-12"
+                    disabled={marketState !== 'OPEN'}
+                    className={`h-14 text-lg font-bold ${
+                      selectedSide === 'no' 
+                        ? 'bg-red-600 hover:bg-red-700 text-white' 
+                        : 'border-red-200 text-red-700 hover:bg-red-50'
+                    }`}
                   >
-                    <AlertCircle className="h-4 w-4 mr-2" />
+                    <AlertCircle className="h-5 w-5 mr-2" />
                     NO
                   </Button>
                 </div>
+                {marketState !== 'OPEN' && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    {marketState === 'CLOSED' ? 'Market is closed for betting' : 
+                     marketState === 'RESOLVED' ? 'Market has been resolved' : 
+                     'Market is not available for betting'}
+                  </p>
+                )}
               </div>
 
               {/* Bet Amount */}
@@ -472,7 +569,7 @@ export function BettingInterface({
                   )}
 
                   {/* Percentage Buttons */}
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -480,6 +577,7 @@ export function BettingInterface({
                         const amount = (tokenBalance.balance * 0.25).toString()
                         handleTokenAmountChange(amount)
                       }}
+                      className="text-xs font-medium"
                     >
                       25%
                     </Button>
@@ -490,6 +588,7 @@ export function BettingInterface({
                         const amount = (tokenBalance.balance * 0.5).toString()
                         handleTokenAmountChange(amount)
                       }}
+                      className="text-xs font-medium"
                     >
                       50%
                     </Button>
@@ -500,6 +599,7 @@ export function BettingInterface({
                         const amount = (tokenBalance.balance * 0.75).toString()
                         handleTokenAmountChange(amount)
                       }}
+                      className="text-xs font-medium"
                     >
                       75%
                     </Button>
@@ -510,6 +610,7 @@ export function BettingInterface({
                         const amount = tokenBalance.balance.toString()
                         handleTokenAmountChange(amount)
                       }}
+                      className="text-xs font-medium bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
                     >
                       MAX
                     </Button>
@@ -520,43 +621,53 @@ export function BettingInterface({
                     const outcome = calculateBetOutcome()
                     if (!outcome) return null
                     
+                    const decimalOdds = (1 / outcome.odds).toFixed(2)
+                    const impliedProbability = outcome.oddsPercentage
+                    
                     return (
-                      <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Odds:</span>
-                            <div className="font-semibold">{outcome.oddsPercentage}%</div>
+                      <div className="p-4 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg border space-y-4">
+                        <div className="text-center">
+                          <div className="text-sm text-muted-foreground mb-2">If {selectedSide?.toUpperCase()} wins, you get:</div>
+                          <div className="text-2xl font-bold text-green-600">${outcome.totalPayout.toFixed(2)}</div>
+                          <div className="text-sm text-green-600 font-medium">+${outcome.profit.toFixed(2)} profit</div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="bg-white/50 p-3 rounded-lg">
+                            <span className="text-muted-foreground text-xs">Decimal Odds:</span>
+                            <div className="font-bold text-lg">{decimalOdds}x</div>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Cost:</span>
-                            <div className="font-semibold">${outcome.totalCost.toFixed(2)}</div>
+                          <div className="bg-white/50 p-3 rounded-lg">
+                            <span className="text-muted-foreground text-xs">Implied Probability:</span>
+                            <div className="font-bold text-lg">{impliedProbability}%</div>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Payout:</span>
-                            <div className="font-semibold text-green-600">${outcome.totalPayout.toFixed(2)}</div>
+                          <div className="bg-white/50 p-3 rounded-lg">
+                            <span className="text-muted-foreground text-xs">Your Stake:</span>
+                            <div className="font-bold text-lg">${outcome.totalCost.toFixed(2)}</div>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Profit:</span>
-                            <div className="font-semibold text-green-600">+${outcome.profit.toFixed(2)}</div>
+                          <div className="bg-white/50 p-3 rounded-lg">
+                            <span className="text-muted-foreground text-xs">Your Share:</span>
+                            <div className="font-bold text-lg">{outcome.poolInfo.yourShare}%</div>
                           </div>
                         </div>
-                        <div className="pt-2 border-t border-muted/50">
-                          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                            <div>
-                              <span>YES Pool:</span>
-                              <div className="font-medium text-green-600">{outcome.poolInfo.yesPool.toFixed(1)} {poolData?.tokenSymbol || 'SOL'}</div>
+                        
+                        <div className="pt-3 border-t border-muted/50">
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="bg-green-50 p-2 rounded-lg">
+                              <span className="text-muted-foreground">YES Pool:</span>
+                              <div className="font-bold text-green-600">{outcome.poolInfo.yesPool.toFixed(1)} {tokenBalance?.symbol || 'SOL'}</div>
                             </div>
-                            <div>
-                              <span>NO Pool:</span>
-                              <div className="font-medium text-red-600">{outcome.poolInfo.noPool.toFixed(1)} {poolData?.tokenSymbol || 'SOL'}</div>
+                            <div className="bg-red-50 p-2 rounded-lg">
+                              <span className="text-muted-foreground">NO Pool:</span>
+                              <div className="font-bold text-red-600">{outcome.poolInfo.noPool.toFixed(1)} {tokenBalance?.symbol || 'SOL'}</div>
                             </div>
-                            <div>
-                              <span>Total Pool:</span>
-                              <div className="font-medium">{outcome.poolInfo.totalPool.toFixed(1)} {poolData?.tokenSymbol || 'SOL'}</div>
+                            <div className="bg-blue-50 p-2 rounded-lg">
+                              <span className="text-muted-foreground">Total Pool:</span>
+                              <div className="font-bold text-blue-600">{outcome.poolInfo.totalPool.toFixed(1)} {tokenBalance?.symbol || 'SOL'}</div>
                             </div>
-                            <div>
-                              <span>Your Share:</span>
-                              <div className="font-medium">{outcome.poolInfo.yourShare}%</div>
+                            <div className="bg-green-50 p-2 rounded-lg">
+                              <span className="text-muted-foreground">No Fees:</span>
+                              <div className="font-bold text-green-600">0%</div>
                             </div>
                           </div>
                         </div>
@@ -570,15 +681,21 @@ export function BettingInterface({
               {selectedSide && betAmount && (
                 <Button
                   onClick={handlePlaceBet}
-                  disabled={isPlacingBet || parseFloat(betAmount) <= 0}
-                  className="w-full"
+                  disabled={isPlacingBet || parseFloat(betAmount) <= 0 || marketState !== 'OPEN'}
+                  className={`w-full h-14 text-lg font-bold ${
+                    selectedSide === 'yes' 
+                      ? 'bg-green-600 hover:bg-green-700 text-white' 
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  }`}
                   size="lg"
                 >
                   {isPlacingBet ? (
                     <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
                       Placing Bet...
                     </>
+                  ) : marketState !== 'OPEN' ? (
+                    'Market Closed'
                   ) : (
                     `Place ${selectedSide.toUpperCase()} Bet`
                   )}

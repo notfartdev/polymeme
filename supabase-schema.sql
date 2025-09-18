@@ -6,6 +6,25 @@ CREATE TABLE IF NOT EXISTS markets (
   question TEXT NOT NULL,
   description TEXT NOT NULL,
   closing_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  
+  -- Comprehensive market rules
+  resolution_criteria TEXT,
+  data_sources TEXT,
+  edge_cases TEXT,
+  dispute_resolution TEXT,
+  market_context TEXT,
+  token_context TEXT,
+  historical_context TEXT,
+  liquidity_context TEXT,
+  confidence_score DECIMAL(3,2),
+  question_type_detailed TEXT,
+  
+  -- Resolution fields
+  resolution TEXT CHECK (resolution IN ('yes', 'no', 'disputed')),
+  resolution_data JSONB,
+  resolved_at TIMESTAMP WITH TIME ZONE,
+  dispute_reason TEXT,
+  
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'pending', 'closed')),
   creator TEXT NOT NULL DEFAULT 'demo_user',

@@ -14,6 +14,7 @@ export function useWalletAssets() {
     if (!publicKey || !connected) {
       console.log('No publicKey or not connected:', { publicKey: publicKey?.toString(), connected })
       setAssets([])
+      setError(null)
       return
     }
 
@@ -24,7 +25,20 @@ export function useWalletAssets() {
     try {
       const walletAssets = await fetchAllWalletAssets(publicKey.toString())
       console.log('Fetched wallet assets:', walletAssets)
-      setAssets(walletAssets)
+      
+      // Filter out assets with zero balance and add some validation
+      const validAssets = walletAssets.filter(asset => 
+        asset.balance > 0 && 
+        asset.symbol && 
+        asset.symbol !== 'UNKNOWN' &&
+        !asset.symbol.startsWith('TOKEN_')
+      )
+      
+      setAssets(validAssets)
+      
+      if (validAssets.length === 0) {
+        setError('No valid tokens found in your wallet. Make sure you have some SPL tokens or SOL.')
+      }
     } catch (err) {
       console.error('Error fetching wallet assets:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch wallet assets')

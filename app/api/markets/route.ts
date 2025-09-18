@@ -26,6 +26,17 @@ export interface CreateMarketRequest {
     side: 'yes' | 'no'
     token: string
   }
+  // Comprehensive market rules
+  resolutionCriteria?: string
+  dataSources?: string
+  edgeCases?: string
+  disputeResolution?: string
+  marketContext?: string
+  tokenContext?: string
+  historicalContext?: string
+  liquidityContext?: string
+  confidenceScore?: number
+  questionTypeDetailed?: string
 }
 
 export interface MarketResponse {
@@ -52,6 +63,17 @@ export interface MarketResponse {
   totalYesBets?: number
   totalNoBets?: number
   totalVolume?: number
+  // Comprehensive market rules
+  resolutionCriteria?: string
+  dataSources?: string
+  edgeCases?: string
+  disputeResolution?: string
+  marketContext?: string
+  tokenContext?: string
+  historicalContext?: string
+  liquidityContext?: string
+  confidenceScore?: number
+  questionTypeDetailed?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -134,7 +156,18 @@ export async function POST(request: NextRequest) {
       bet_side: body.betSide || body.initialBet?.side,
       total_yes_bets: 0,
       total_no_bets: 0,
-      total_volume: 0
+      total_volume: 0,
+      // Comprehensive market rules
+      resolution_criteria: body.resolutionCriteria,
+      data_sources: body.dataSources,
+      edge_cases: body.edgeCases,
+      dispute_resolution: body.disputeResolution,
+      market_context: body.marketContext,
+      token_context: body.tokenContext,
+      historical_context: body.historicalContext,
+      liquidity_context: body.liquidityContext,
+      confidence_score: body.confidenceScore,
+      question_type_detailed: body.questionTypeDetailed
     }
 
     // Insert into Supabase
@@ -174,7 +207,18 @@ export async function POST(request: NextRequest) {
       betSide: data.bet_side,
       totalYesBets: data.total_yes_bets,
       totalNoBets: data.total_no_bets,
-      totalVolume: data.total_volume
+      totalVolume: data.total_volume,
+      // Comprehensive market rules
+      resolutionCriteria: data.resolution_criteria,
+      dataSources: data.data_sources,
+      edgeCases: data.edge_cases,
+      disputeResolution: data.dispute_resolution,
+      marketContext: data.market_context,
+      tokenContext: data.token_context,
+      historicalContext: data.historical_context,
+      liquidityContext: data.liquidity_context,
+      confidenceScore: data.confidence_score,
+      questionTypeDetailed: data.question_type_detailed
     }
 
     return NextResponse.json(newMarket, { status: 201 })
@@ -225,7 +269,18 @@ export async function GET() {
       betSide: market.bet_side,
       totalYesBets: market.total_yes_bets,
       totalNoBets: market.total_no_bets,
-      totalVolume: market.total_volume
+      totalVolume: market.total_volume,
+      // Comprehensive market rules
+      resolutionCriteria: market.resolution_criteria,
+      dataSources: market.data_sources,
+      edgeCases: market.edge_cases,
+      disputeResolution: market.dispute_resolution,
+      marketContext: market.market_context,
+      tokenContext: market.token_context,
+      historicalContext: market.historical_context,
+      liquidityContext: market.liquidity_context,
+      confidenceScore: market.confidence_score,
+      questionTypeDetailed: market.question_type_detailed
     }))
 
     return NextResponse.json(markets, { status: 200 })

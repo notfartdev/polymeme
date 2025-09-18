@@ -56,6 +56,22 @@ interface MarketData {
   totalYesBets?: number
   totalNoBets?: number
   totalVolume?: number
+  // Comprehensive market rules
+  resolutionCriteria?: string
+  dataSources?: string
+  edgeCases?: string
+  disputeResolution?: string
+  marketContext?: string
+  tokenContext?: string
+  historicalContext?: string
+  liquidityContext?: string
+  confidenceScore?: number
+  questionTypeDetailed?: string
+  // Resolution fields
+  resolution?: 'yes' | 'no' | 'disputed'
+  resolutionData?: any
+  resolvedAt?: string
+  disputeReason?: string
 }
 
 export default function MarketDetailPage() {
@@ -212,56 +228,58 @@ export default function MarketDetailPage() {
           Back to Markets
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-6">
             {/* Market Header */}
-            <div className="flex items-start gap-4">
-              {market.tokenLogo ? (
-                <img 
-                  src={market.tokenLogo} 
-                  alt={market.tokenSymbol || market.asset} 
-                  className="w-16 h-16 rounded-full object-cover"
-                  onError={(e) => {
-                    // Fallback to gradient if image fails to load
-                    e.currentTarget.style.display = 'none'
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                  }}
-                />
-              ) : null}
-              <div className={`w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ${market.tokenLogo ? 'hidden' : ''}`}>
-                <Hash className="h-8 w-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                    {market.asset}
-                  </span>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                    {market.status.toUpperCase()}
-                  </span>
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <div className="flex items-start gap-4 flex-1">
+                {market.tokenLogo ? (
+                  <img 
+                    src={market.tokenLogo} 
+                    alt={market.tokenSymbol || market.asset} 
+                    className="w-16 h-16 rounded-full object-cover flex-shrink-0"
+                    onError={(e) => {
+                      // Fallback to gradient if image fails to load
+                      e.currentTarget.style.display = 'none'
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                    }}
+                  />
+                ) : null}
+                <div className={`w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 ${market.tokenLogo ? 'hidden' : ''}`}>
+                  <Hash className="h-8 w-8 text-white" />
                 </div>
-                <h1 className="text-2xl font-bold text-foreground mb-2">{market.question}</h1>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    Closes {formattedClosingDate}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    Created by{" "}
-                    <a 
-                      href={`https://solscan.io/account/${market.creator}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline font-mono text-xs"
-                    >
-                      {market.creator.slice(0, 8)}...{market.creator.slice(-8)}
-                    </a>
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                      {market.asset}
+                    </span>
+                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                      {market.status.toUpperCase()}
+                    </span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2 break-words">{market.question}</h1>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-4 w-4 flex-shrink-0" />
+                      <span className="break-words">Closes {formattedClosingDate}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="h-4 w-4 flex-shrink-0" />
+                      <span>Created by{" "}</span>
+                      <a 
+                        href={`https://solscan.io/account/${market.creator}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline font-mono text-xs break-all"
+                      >
+                        {market.creator.slice(0, 8)}...{market.creator.slice(-8)}
+                      </a>
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-shrink-0">
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -317,31 +335,174 @@ export default function MarketDetailPage() {
 
 
 
-            {/* Rules Summary */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
+            {/* Comprehensive Market Details */}
+            <Card className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   Market Details
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </h3>
               </div>
 
-              <div className="mb-4">
-                <Button
-                  variant="outline"
-                  className="text-green-600 border-green-200 hover:bg-green-50 flex items-center gap-2 bg-transparent"
-                >
-                  Yes/No Market <ChevronDown className="h-4 w-4" />
-                </Button>
-              </div>
+              <p className="text-muted-foreground leading-relaxed mb-6">{market.description}</p>
 
-              <p className="text-muted-foreground leading-relaxed mb-4">{market.description}</p>
+              {/* Market Insights Summary */}
+              {(market.marketContext || market.tokenContext || market.historicalContext || market.liquidityContext) && (
+                <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Market Insights Summary
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    {market.marketContext && (
+                      <div>
+                        <span className="font-medium text-blue-700">Market Conditions:</span>
+                        <p className="text-blue-600 mt-1">{market.marketContext}</p>
+                      </div>
+                    )}
+                    {market.tokenContext && (
+                      <div>
+                        <span className="font-medium text-green-700">Token Profile:</span>
+                        <p className="text-green-600 mt-1">{market.tokenContext}</p>
+                      </div>
+                    )}
+                    {market.historicalContext && (
+                      <div>
+                        <span className="font-medium text-purple-700">Recent Performance:</span>
+                        <p className="text-purple-600 mt-1">{market.historicalContext}</p>
+                      </div>
+                    )}
+                    {market.liquidityContext && (
+                      <div>
+                        <span className="font-medium text-orange-700">Liquidity Analysis:</span>
+                        <p className="text-orange-600 mt-1">{market.liquidityContext}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
-              <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                <div><strong>Asset:</strong> {market.asset}</div>
-                <div><strong>Type:</strong> {market.questionType}</div>
-                <div><strong>Created:</strong> {format(new Date(market.createdAt), "MMM dd, yyyy 'at' p 'UTC'")}</div>
-              </div>
+              {/* Comprehensive Market Rules */}
+              {market.resolutionCriteria && (
+                <div className="space-y-6">
+                  {/* Market Context - Show this prominently first */}
+                  {market.marketContext && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Market Context
+                      </h4>
+                      <p className="text-sm text-blue-800 leading-relaxed">{market.marketContext}</p>
+                    </div>
+                  )}
+
+                  {/* Token Analysis */}
+                  {market.tokenContext && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h4 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                        <Hash className="h-4 w-4" />
+                        Token Analysis
+                      </h4>
+                      <p className="text-sm text-green-800 leading-relaxed">{market.tokenContext}</p>
+                    </div>
+                  )}
+
+                  {/* Historical Performance */}
+                  {market.historicalContext && (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <h4 className="font-semibold text-purple-900 mb-2 flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Historical Performance
+                      </h4>
+                      <p className="text-sm text-purple-800 leading-relaxed">{market.historicalContext}</p>
+                    </div>
+                  )}
+
+                  {/* Liquidity Impact */}
+                  {market.liquidityContext && (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                      <h4 className="font-semibold text-orange-900 mb-2 flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Liquidity Impact
+                      </h4>
+                      <p className="text-sm text-orange-800 leading-relaxed">{market.liquidityContext}</p>
+                    </div>
+                  )}
+
+                  {/* Resolution Criteria */}
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" />
+                      Resolution Criteria
+                    </h4>
+                    <p className="text-sm text-gray-800 leading-relaxed">{market.resolutionCriteria}</p>
+                  </div>
+
+                  {/* Data Sources */}
+                  {market.dataSources && (
+                    <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                      <h4 className="font-semibold text-indigo-900 mb-2 flex items-center gap-2">
+                        <Info className="h-4 w-4" />
+                        Data Sources
+                      </h4>
+                      <p className="text-sm text-indigo-800 leading-relaxed">{market.dataSources}</p>
+                    </div>
+                  )}
+
+                  {/* Edge Cases */}
+                  {market.edgeCases && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <h4 className="font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+                        <Info className="h-4 w-4" />
+                        Edge Cases & Exceptions
+                      </h4>
+                      <p className="text-sm text-yellow-800 leading-relaxed">{market.edgeCases}</p>
+                    </div>
+                  )}
+
+                  {/* Dispute Resolution */}
+                  {market.disputeResolution && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <h4 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
+                        <Info className="h-4 w-4" />
+                        Dispute Resolution
+                      </h4>
+                      <p className="text-sm text-red-800 leading-relaxed">{market.disputeResolution}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Market Resolution Status */}
+              {market.status === 'closed' && market.resolution && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <h4 className="font-semibold text-green-900">Market Resolved</h4>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <strong>Resolution:</strong> 
+                      <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                        market.resolution === 'yes' 
+                          ? 'bg-green-100 text-green-800' 
+                          : market.resolution === 'no'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {market.resolution.toUpperCase()}
+                      </span>
+                    </div>
+                    {market.resolvedAt && (
+                      <div><strong>Resolved:</strong> {format(new Date(market.resolvedAt), "MMM dd, yyyy 'at' p 'UTC'")}</div>
+                    )}
+                    {market.disputeReason && (
+                      <div className="text-yellow-700"><strong>Note:</strong> {market.disputeReason}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
 
               {/* Token Requirements */}
               <Card className="p-4 bg-blue-50 border-blue-200 mb-4">
@@ -392,7 +553,7 @@ export default function MarketDetailPage() {
               />
             </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button 
                   variant="outline" 
                   className="text-green-600 border-green-200 hover:bg-green-50 bg-transparent"
@@ -420,7 +581,7 @@ export default function MarketDetailPage() {
             </Card>
 
             {/* Timeline and payout section */}
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-6">
                 <Calendar className="h-5 w-5" />
                 <h3 className="text-lg font-semibold">Timeline and payout</h3>
@@ -468,12 +629,12 @@ export default function MarketDetailPage() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span>
-                    <strong>Market ID</strong> {market.id}
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span className="break-all">
+                    <strong>Market ID:</strong> {market.id}
                   </span>
                   <span>
-                    <strong>Created</strong> {new Date(market.createdAt).toLocaleDateString()}
+                    <strong>Created:</strong> {new Date(market.createdAt).toLocaleDateString()}
                   </span>
                 </div>
               </div>
@@ -482,38 +643,38 @@ export default function MarketDetailPage() {
 
           {/* Trading Panel */}
           <div className="space-y-4">
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 {market.tokenLogo ? (
                   <img 
                     src={market.tokenLogo} 
                     alt={market.tokenSymbol || market.asset} 
-                    className="w-8 h-8 rounded-full object-cover"
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'
                       e.currentTarget.nextElementSibling?.classList.remove('hidden')
                     }}
                   />
                 ) : null}
-                <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ${market.tokenLogo ? 'hidden' : ''}`}>
+                <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 ${market.tokenLogo ? 'hidden' : ''}`}>
                   <Hash className="h-4 w-4 text-white" />
                 </div>
-                <div>
-                  <div className="font-medium text-sm">{market.asset}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Yes/No Market
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-sm truncate">{market.asset}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {market.questionTypeDetailed ? market.questionTypeDetailed.replace('_', ' ') : 'Prediction Market'}
                   </div>
                 </div>
               </div>
 
 
-              <div className="flex gap-2 mb-4">
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <Button
                   size="lg"
-                  className={`flex-1 text-lg font-semibold ${
+                  className={`h-12 sm:h-14 text-base sm:text-lg font-semibold ${
                     selectedOutcome === "yes"
-                      ? "bg-blue-600 hover:bg-blue-700"
-                      : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "bg-green-100 hover:bg-green-200 text-green-700 border-green-200"
                   }`}
                   onClick={() => {
                     setSelectedOutcome("yes")
@@ -524,10 +685,10 @@ export default function MarketDetailPage() {
                 </Button>
                 <Button
                   size="lg"
-                  className={`flex-1 text-lg font-semibold ${
+                  className={`h-12 sm:h-14 text-base sm:text-lg font-semibold ${
                     selectedOutcome === "no"
                       ? "bg-red-600 hover:bg-red-700 text-white"
-                      : "bg-red-100 hover:bg-red-200 text-red-700"
+                      : "bg-red-100 hover:bg-red-200 text-red-700 border-red-200"
                   }`}
                   onClick={() => {
                     setSelectedOutcome("no")
@@ -590,46 +751,37 @@ export default function MarketDetailPage() {
                       </Button>
                     </div>
                   </div>
-                ) : (
-                  <div>
-                    <label className="text-sm font-medium">Amount</label>
-                    <Input
-                      placeholder="$0"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="text-2xl font-bold text-center"
-                    />
-                  </div>
-                )}
+                ) : null}
 
-                <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-                  <div className="flex justify-between text-sm">
-                    <span>Odds</span>
-                    <span className="font-semibold">{currentPrice}% chance</span>
-                  </div>
-                  {orderType === "market" && amountValue > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Payout if {selectedOutcome === "yes" ? "Yes" : "No"}</span>
-                      <span className="font-semibold text-green-600">${amountValue.toFixed(2)}</span>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    How to Place a Bet
+                  </h4>
+                  <div className="space-y-2 text-sm text-blue-800">
+                    <div className="flex items-start gap-2">
+                      <span className="font-medium">1.</span>
+                      <span>Click <strong>Yes</strong> or <strong>No</strong> to choose your position</span>
                     </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <span>Total</span>
-                    <span className="font-semibold">${totalCost.toFixed(2)}</span>
+                    <div className="flex items-start gap-2">
+                      <span className="font-medium">2.</span>
+                      <span>Enter your bet amount in the input field</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="font-medium">3.</span>
+                      <span>Review your bet details in the popup modal</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="font-medium">4.</span>
+                      <span>Click <strong>Place Bet</strong> to confirm your position</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>To Win</span>
-                    <span className="font-semibold text-green-600">${Math.max(0, potentialWin).toFixed(2)}</span>
+                  <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-700">
+                    <strong>Note:</strong> You need {market.tokenSymbol || "SOL"} tokens in your wallet to place bets. 
+                    The modal will show detailed calculations including odds, potential winnings, and pool information.
                   </div>
                 </div>
 
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3">
-                  {totalCost > 0 ? `Trade $${totalCost.toFixed(2)}` : "Sign up to trade"}
-                </Button>
-
-                {totalCost > 0 && (
-                  <p className="text-xs text-muted-foreground text-center">By trading, you agree to the Terms of Use</p>
-                )}
               </div>
             </Card>
 

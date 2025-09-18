@@ -62,6 +62,42 @@ const TOKEN_COINGECKO_MAP: Record<string, string> = {
   'BTC': 'bitcoin',
   'ETH': 'ethereum',
   'USELESS': 'useless',
+  'BOME': 'book-of-meme',
+  'SLERF': 'slerf',
+  'MYRO': 'myro',
+  'JUP': 'jupiter-exchange-solana',
+  'RAY': 'raydium',
+  'ORCA': 'orca',
+  'MNGO': 'mango-markets',
+  'SRM': 'serum',
+  'COPE': 'cope',
+  'FIDA': 'bonfida',
+  'KIN': 'kin',
+  'MAPS': 'maps',
+  'OXY': 'oxygen',
+  'PORT': 'port-finance',
+  'SAMO': 'samoyedcoin',
+  'STEP': 'step-finance',
+  'TULIP': 'tulip-protocol',
+  'MEDIA': 'media-network',
+  'ROPE': 'rope-token',
+  'ALEPH': 'aleph',
+  'LIKE': 'only1',
+  'BOP': 'boring-protocol',
+  'SNY': 'synthetify-token',
+  'SLIM': 'solanium',
+  'WOOF': 'woof-token',
+  'SUNNY': 'sunny-aggregator',
+  'CROWN': 'crown-by-third-time-games',
+  'FRKT': 'frakt-token',
+  'COPE': 'cope',
+  'BOP': 'boring-protocol',
+  'SAMO': 'samoyedcoin',
+  'SLIM': 'solanium',
+  'WOOF': 'woof-token',
+  'SUNNY': 'sunny-aggregator',
+  'CROWN': 'crown-by-third-time-games',
+  'FRKT': 'frakt-token',
 }
 
 export class CoinGeckoAPI {
@@ -75,8 +111,9 @@ export class CoinGeckoAPI {
   static async getTokenData(symbol: string): Promise<TokenData | null> {
     const coinGeckoId = TOKEN_COINGECKO_MAP[symbol.toUpperCase()]
     if (!coinGeckoId) {
-      console.warn(`No CoinGecko ID found for token: ${symbol}`)
-      return null
+      console.warn(`No CoinGecko ID found for token: ${symbol}, trying dynamic search...`)
+      // Try dynamic search if not in predefined map
+      return await this.getTokenDataBySymbol(symbol)
     }
 
     // Try Pro API first

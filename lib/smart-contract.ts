@@ -263,8 +263,22 @@ export class SmartContractService {
 
   // Mock data generator (temporary)
   private generateMockPoolData(marketId: string, tokenSymbol: string = 'SOL') {
-    const baseYesPool = 150 + Math.random() * 100
-    const baseNoPool = 200 + Math.random() * 150
+    // Generate realistic pool sizes based on token type
+    let baseYesPool, baseNoPool
+    
+    if (tokenSymbol === 'WIF') {
+      // WIF pools - smaller amounts since WIF is worth less
+      baseYesPool = 1000 + Math.random() * 2000  // 1000-3000 WIF
+      baseNoPool = 1500 + Math.random() * 2500   // 1500-4000 WIF
+    } else if (tokenSymbol === 'SOL') {
+      // SOL pools - medium amounts
+      baseYesPool = 150 + Math.random() * 100    // 150-250 SOL
+      baseNoPool = 200 + Math.random() * 150     // 200-350 SOL
+    } else {
+      // Other tokens - adjust based on typical values
+      baseYesPool = 500 + Math.random() * 1000   // 500-1500 tokens
+      baseNoPool = 750 + Math.random() * 1250    // 750-2000 tokens
+    }
     
     return {
       marketId,

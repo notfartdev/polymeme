@@ -19,6 +19,8 @@ import { marketApi, handleApiError, CreateMarketRequest } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
+import { SmartQuestionEngine, SmartQuestion, generateSmartQuestions } from "@/lib/smart-questions"
+import { SmartDescriptionEngine, SmartDescription, generateSmartDescriptions } from "@/lib/smart-descriptions"
 import { TokenInfoCard } from "@/components/token-info-card"
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletAssets } from '@/hooks/use-wallet-assets'
@@ -26,63 +28,32 @@ import { WalletGuard } from '@/components/wallet-guard'
 
 // Wallet assets will be fetched from the user's actual wallet
 
-// Time-based prediction suggestions for memecoins
-const getTimeBasedSuggestions = (tokenData: TokenData | null, tokenSymbol: string, timeframe: string) => {
-  if (!tokenData || !tokenData.current_price) {
-    return [`Will ${tokenSymbol} pump 10%+ in the next ${timeframe}?`]
+// Generate smart, real-time questions using the SmartQuestionEngine
+const generateSmartQuestionsForToken = async (tokenData: TokenData | null, tokenSymbol: string, timeframe: string): Promise<SmartQuestion[]> => {
+  if (!tokenData) {
+    return [{
+      question: `Will ${tokenSymbol} reach a new price target in the next ${timeframe}?`,
+      timeframe,
+      expectedProbability: 0.5,
+      resolutionCriteria: 'Price must reach the specified target',
+      questionType: 'price' as const
+    }]
   }
   
-  const currentPrice = tokenData.current_price
-  const priceChange24h = tokenData.price_change_percentage_24h || 0
-  const suggestions = []
-  
-  // Calculate realistic targets based on timeframe and volatility
-  const getVolatilityMultiplier = (timeframe: string) => {
-    switch (timeframe) {
-      case '1H': return 0.02  // 2% max in 1 hour (more realistic)
-      case '3H': return 0.05  // 5% max in 3 hours  
-      case '6H': return 0.10  // 10% max in 6 hours
-      case '12H': return 0.15 // 15% max in 12 hours
-      case '24H': return 0.25 // 25% max in 24 hours (realistic for memecoins)
-      default: return 0.10
-    }
+  try {
+    // Use the exported function from smart-questions.ts
+    return await generateSmartQuestions(tokenData, timeframe)
+  } catch (error) {
+    console.error('Error generating smart questions:', error)
+    // Fallback to basic questions
+    return [{
+      question: `Will ${tokenSymbol} reach a new price target in the next ${timeframe}?`,
+      timeframe,
+      expectedProbability: 0.5,
+      resolutionCriteria: 'Price must reach the specified target',
+      questionType: 'price' as const
+    }]
   }
-  
-  const volatility = getVolatilityMultiplier(timeframe)
-  const bullishTarget = (currentPrice * (1 + volatility)).toFixed(4)
-  const bearishTarget = (currentPrice * (1 - volatility)).toFixed(4)
-  const moderateTarget = (currentPrice * (1 + volatility * 0.5)).toFixed(4)
-  
-  // Price-based suggestions (more realistic)
-  const percentageTarget = Math.round(volatility * 100)
-  suggestions.push(
-    `Will ${tokenSymbol} reach $${bullishTarget} in the next ${timeframe}?`,
-    `Will ${tokenSymbol} drop below $${bearishTarget} in the next ${timeframe}?`,
-    `Will ${tokenSymbol} pump ${percentageTarget}%+ in the next ${timeframe}?`
-  )
-  
-  // Volume-based suggestions (if available)
-  if (tokenData.total_volume) {
-    const currentVolume = tokenData.total_volume
-    const volumeTarget = (currentVolume * 2).toLocaleString()
-    suggestions.push(`Will ${tokenSymbol} volume exceed $${volumeTarget} in the next ${timeframe}?`)
-  }
-  
-  // Market cap suggestions
-  if (tokenData.market_cap) {
-    const currentMC = tokenData.market_cap
-    const mcTarget = (currentMC * 1.2).toLocaleString()
-    suggestions.push(`Will ${tokenSymbol} market cap exceed $${mcTarget} in the next ${timeframe}?`)
-  }
-  
-  // Trend-based suggestions
-  if (priceChange24h > 0) {
-    suggestions.push(`Will ${tokenSymbol} continue its uptrend in the next ${timeframe}?`)
-  } else {
-    suggestions.push(`Will ${tokenSymbol} reverse its downtrend in the next ${timeframe}?`)
-  }
-  
-  return suggestions
 }
 
 // Enhanced smart suggestions based on real-time data and events
@@ -379,12 +350,78 @@ function CreateMarketContent() {
 
   const selectedToken = walletAssets.find(asset => asset.symbol === selectedAsset)
   
-  // Use time-based suggestions for short timeframes, regular suggestions for longer ones
-  const questionSuggestions = selectedTimeframe && ['1H', '3H', '6H', '12H', '24H'].includes(selectedTimeframe) 
-    ? getTimeBasedSuggestions(tokenData, selectedAsset, selectedTimeframe)
-    : getSmartSuggestions(tokenData, selectedAsset)
-    
-  const descriptionSuggestions = getDescriptionSuggestions(question, tokenData, selectedAsset)
+  // State for smart questions
+  const [questionSuggestions, setQuestionSuggestions] = useState<SmartQuestion[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  
+  // State for smart descriptions
+  const [descriptionSuggestions, setDescriptionSuggestions] = useState<SmartDescription[]>([])
+  const [loadingDescriptions, setLoadingDescriptions] = useState(false)
+  const [selectedQuestion, setSelectedQuestion] = useState<SmartQuestion | null>(null)
+  const [selectedDescription, setSelectedDescription] = useState<SmartDescription | null>(null)
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false)
+
+  // Generate smart questions when token data or timeframe changes
+  useEffect(() => {
+    const loadSmartQuestions = async () => {
+      if (selectedAsset && tokenData && selectedTimeframe) {
+        setLoadingSuggestions(true)
+        try {
+          const suggestions = await generateSmartQuestionsForToken(tokenData, selectedAsset, selectedTimeframe)
+          setQuestionSuggestions(suggestions)
+        } catch (error) {
+          console.error('Error loading smart questions:', error)
+          setQuestionSuggestions([])
+        } finally {
+          setLoadingSuggestions(false)
+        }
+      } else {
+        setQuestionSuggestions([])
+      }
+    }
+
+    loadSmartQuestions()
+  }, [selectedAsset, tokenData, selectedTimeframe])
+
+  // Generate smart descriptions when question changes
+  useEffect(() => {
+    const loadSmartDescriptions = async () => {
+      if (question && tokenData && selectedTimeframe) {
+        setLoadingDescriptions(true)
+        try {
+          // Find the selected question from suggestions
+          const matchingQuestion = questionSuggestions.find(q => q.question === question)
+          if (matchingQuestion) {
+            setSelectedQuestion(matchingQuestion)
+            const descriptions = await generateSmartDescriptions(matchingQuestion, tokenData)
+            setDescriptionSuggestions(descriptions)
+          } else {
+            // Create a basic question object for custom questions
+            const basicQuestion: SmartQuestion = {
+              question,
+              timeframe: selectedTimeframe,
+              expectedProbability: 0.5,
+              resolutionCriteria: 'Standard price-based resolution',
+              questionType: 'price' as const
+            }
+            setSelectedQuestion(basicQuestion)
+            const descriptions = await generateSmartDescriptions(basicQuestion, tokenData)
+            setDescriptionSuggestions(descriptions)
+          }
+        } catch (error) {
+          console.error('Error loading smart descriptions:', error)
+          setDescriptionSuggestions([])
+        } finally {
+          setLoadingDescriptions(false)
+        }
+      } else {
+        setDescriptionSuggestions([])
+        setSelectedQuestion(null)
+      }
+    }
+
+    loadSmartDescriptions()
+  }, [question, tokenData, selectedTimeframe, questionSuggestions])
 
   // Calculate question clarity when question changes
   useEffect(() => {
@@ -446,17 +483,50 @@ function CreateMarketContent() {
     if (assetSymbol) {
       setIsLoadingTokenData(true)
       try {
+        // Try to get token data from CoinGecko
         const data = await CoinGeckoAPI.getTokenData(assetSymbol)
         console.log('Token data received:', data) // Debug log
-        setTokenData(data)
-        if (data?.image) {
-          setTokenImage(data.image)
-        }
+        
         if (data) {
+          setTokenData(data)
+          if (data.image) {
+            setTokenImage(data.image)
+          }
           toast({
             title: "Token data loaded",
             description: `Fetched real-time data for ${data.name}`,
           })
+        } else {
+          // If no CoinGecko data, create basic token info from wallet asset
+          const selectedToken = walletAssets.find(asset => asset.symbol === assetSymbol)
+          if (selectedToken) {
+            const basicTokenData: TokenData = {
+              id: selectedToken.mint,
+              symbol: selectedToken.symbol,
+              name: selectedToken.name,
+              image: selectedToken.logo || '',
+              current_price: selectedToken.price || 0,
+              market_cap: 0,
+              market_cap_rank: 0,
+              total_volume: 0,
+              price_change_percentage_24h: selectedToken.change24h || 0,
+              price_change_percentage_7d: 0,
+              price_change_percentage_30d: 0,
+              ath: 0,
+              ath_change_percentage: 0,
+              atl: 0,
+              atl_change_percentage: 0,
+              last_updated: new Date().toISOString(),
+            }
+            setTokenData(basicTokenData)
+            if (selectedToken.logo) {
+              setTokenImage(selectedToken.logo)
+            }
+            toast({
+              title: "Token selected",
+              description: `Using basic information for ${selectedToken.name}`,
+            })
+          }
         }
       } catch (error) {
         console.error("Error fetching token data:", error)
@@ -475,8 +545,37 @@ function CreateMarketContent() {
     // Validate required fields
     if (!selectedAsset || !question || !description || !closingDate || !initialBetAmount) {
       toast({
-        title: t("validation_error"),
-        description: t("missing_required_fields"),
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate question length and quality
+    if (question.length < 10) {
+      toast({
+        title: "Validation Error",
+        description: "Question must be at least 10 characters long",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!question.includes('?')) {
+      toast({
+        title: "Validation Error",
+        description: "Question must end with a question mark (?)",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate description length
+    if (description.length < 20) {
+      toast({
+        title: "Validation Error",
+        description: "Description must be at least 20 characters long",
         variant: "destructive",
       })
       return
@@ -486,7 +585,7 @@ function CreateMarketContent() {
     const betAmount = parseFloat(initialBetAmount)
     if (isNaN(betAmount) || betAmount <= 0) {
       toast({
-        title: t("validation_error"),
+        title: "Validation Error",
         description: "Please enter a valid initial bet amount",
         variant: "destructive",
       })
@@ -496,7 +595,7 @@ function CreateMarketContent() {
     // Check if user has enough balance
     if (selectedToken && betAmount > selectedToken.balance) {
       toast({
-        title: t("validation_error"),
+        title: "Validation Error",
         description: `Insufficient ${selectedAsset} balance. You have ${selectedToken.balance.toLocaleString()} ${selectedAsset}`,
         variant: "destructive",
       })
@@ -507,8 +606,18 @@ function CreateMarketContent() {
     const dateTimeError = validateClosingDateTime()
     if (dateTimeError) {
       toast({
-        title: t("validation_error"),
+        title: "Validation Error",
         description: dateTimeError,
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Check for duplicate markets
+    if (duplicateMarkets.length > 0) {
+      toast({
+        title: "Similar Market Found",
+        description: "A similar market already exists. Please modify your question to make it unique.",
         variant: "destructive",
       })
       return
@@ -518,6 +627,9 @@ function CreateMarketContent() {
 
     try {
       const closingDateTime = getClosingDateTime()!
+      // Get the selected description's comprehensive rules
+      const selectedDescriptionRules = descriptionSuggestions.find(d => d.description === description)
+      
       const marketData: CreateMarketRequest = {
         asset: selectedAsset,
         questionType: "yes-no", // Only Yes/No for MVP
@@ -536,7 +648,18 @@ function CreateMarketContent() {
           amount: betAmount,
           side: betSide,
           token: selectedAsset
-        }
+        },
+        // Comprehensive market rules
+        resolutionCriteria: selectedDescriptionRules?.resolutionCriteria,
+        dataSources: selectedDescriptionRules?.dataSources,
+        edgeCases: selectedDescriptionRules?.edgeCases,
+        disputeResolution: selectedDescriptionRules?.disputeResolution,
+        marketContext: selectedDescriptionRules?.marketContext,
+        tokenContext: selectedDescriptionRules?.tokenContext,
+        historicalContext: selectedDescriptionRules?.historicalContext,
+        liquidityContext: selectedDescriptionRules?.liquidityContext,
+        confidenceScore: selectedDescriptionRules?.confidence,
+        questionTypeDetailed: selectedQuestion?.questionType
       }
 
       const createdMarket = await marketApi.createMarket(marketData)
@@ -763,26 +886,51 @@ function CreateMarketContent() {
                       <p className="text-muted-foreground">Choose a memecoin or token from your wallet to create a market about</p>
                     </div>
                     
-                <Select value={selectedAsset} onValueChange={handleAssetChange} disabled={isLoadingTokenData}>
-                      <SelectTrigger className="h-12">
-                        <SelectValue placeholder={isLoadingTokenData ? "Loading token data..." : "Select a token from your wallet"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {walletAssets.map((asset) => (
-                      <SelectItem key={asset.symbol} value={asset.symbol}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
-                            <span className="text-xs font-bold">{asset.symbol.slice(0, 2)}</span>
+                {assetsLoading ? (
+                  <div className="h-12 flex items-center justify-center border rounded-md bg-muted/50">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                    <span className="text-sm text-muted-foreground">Loading wallet assets...</span>
+                  </div>
+                ) : walletAssets.length === 0 ? (
+                  <div className="h-12 flex items-center justify-center border rounded-md bg-muted/50">
+                    <span className="text-sm text-muted-foreground">No tokens found in your wallet</span>
+                  </div>
+                ) : (
+                  <Select value={selectedAsset} onValueChange={handleAssetChange} disabled={isLoadingTokenData}>
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder={isLoadingTokenData ? "Loading token data..." : "Select a token from your wallet"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {walletAssets.map((asset) => (
+                        <SelectItem key={asset.symbol} value={asset.symbol}>
+                          <div className="flex items-center gap-3">
+                            {asset.logo ? (
+                              <img 
+                                src={asset.logo} 
+                                alt={asset.symbol}
+                                className="w-6 h-6 rounded-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-6 h-6 bg-muted rounded-full flex items-center justify-center ${asset.logo ? 'hidden' : ''}`}>
+                              <span className="text-xs font-bold">{asset.symbol.slice(0, 2)}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">{asset.symbol}</span>
+                              <span className="text-muted-foreground ml-2">({asset.balance.toLocaleString()})</span>
+                              {asset.value && asset.value > 0 && (
+                                <span className="text-green-600 ml-2">${asset.value.toFixed(2)}</span>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium">{asset.symbol}</span>
-                            <span className="text-muted-foreground ml-2">({asset.balance.toLocaleString()})</span>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
               {selectedAsset && (
                       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -806,6 +954,8 @@ function CreateMarketContent() {
                       </div>
                       <h2 className="text-2xl font-bold mb-2">Write Your Question</h2>
                       <p className="text-muted-foreground">Create a yes/no question about {selectedAsset}</p>
+                      
+                      {/* Anti-manipulation indicator */}
                       </div>
                     
                 <div className="space-y-4">
@@ -865,20 +1015,82 @@ function CreateMarketContent() {
                     )}
                         </div>
 
-                      {questionSuggestions.length > 0 && (
-                    <div>
-                          <Label className="text-sm font-medium">AI Suggestions</Label>
-                      <div className="mt-2 space-y-2">
-                            {questionSuggestions.slice(0, 3).map((suggestion, index) => (
-                          <button
-                            key={index}
-                                onClick={() => setQuestion(suggestion)}
-                                className="w-full p-3 text-left text-sm bg-muted/50 hover:bg-muted rounded-lg transition-colors"
-                          >
-                            {suggestion}
-                          </button>
-                        ))}
+                      {/* Smart AI Suggestions */}
+                      <div>
+                        <Label className="text-sm font-medium">Smart AI Suggestions</Label>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Data-driven questions based on current market conditions
+                        </p>
+                        
+                        {loadingSuggestions ? (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-blue-800">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                              <span className="text-sm">Generating smart questions...</span>
+                            </div>
+                          </div>
+                        ) : questionSuggestions.length > 0 ? (
+                          <div className="mt-2 max-h-80 overflow-y-auto space-y-2 pr-2">
+                            {questionSuggestions.map((suggestion, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setQuestion(suggestion.question)}
+                                className="w-full p-3 text-left text-sm bg-muted/50 hover:bg-muted rounded-lg transition-colors border border-transparent hover:border-primary/20 group"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-shrink-0 mt-1">
+                                    <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                      {index + 1}
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-foreground group-hover:text-primary transition-colors">
+                                      {suggestion.question || 'Question not available'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-3 bg-muted/30 rounded-lg">
+                            <p className="text-sm text-muted-foreground">
+                              No smart suggestions available. Try selecting a different timeframe.
+                            </p>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Duplicate Market Warning */}
+                      {duplicateMarkets.length > 0 && (
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-center gap-2 text-yellow-800 mb-2">
+                            <div className="w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">!</span>
+                            </div>
+                            <span className="font-medium">Similar Markets Found</span>
+                          </div>
+                          <p className="text-sm text-yellow-700 mb-3">
+                            We found {duplicateMarkets.length} similar market{duplicateMarkets.length > 1 ? 's' : ''}. Consider making your question more specific.
+                          </p>
+                          <div className="space-y-2">
+                            {duplicateMarkets.map((market, index) => (
+                              <div key={index} className="p-2 bg-yellow-100 rounded text-sm">
+                                <span className="font-medium">Similarity: {Math.round(market.similarity * 100)}%</span>
+                                <p className="text-yellow-800 mt-1">{market.question}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Checking for duplicates indicator */}
+                      {checkingDuplicates && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center gap-2 text-blue-800">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                            <span className="text-sm">Checking for similar markets...</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -917,22 +1129,103 @@ function CreateMarketContent() {
                         </div>
                       </div>
 
-                      {descriptionSuggestions.length > 0 && (
-                        <div>
-                          <Label className="text-sm font-medium">AI Suggestions</Label>
-                        <div className="mt-2 space-y-2">
-                            {descriptionSuggestions.slice(0, 2).map((suggestion, index) => (
-                            <button
-                              key={index}
-                                onClick={() => setDescription(suggestion)}
-                                className="w-full p-3 text-left text-sm bg-muted/50 hover:bg-muted rounded-lg transition-colors"
-                            >
-                              {suggestion}
-                            </button>
-                          ))}
+                      {loadingDescriptions ? (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center gap-2 text-blue-800">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                            <span className="text-sm">Generating detailed market rules...</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      ) : descriptionSuggestions.length > 0 ? (
+                        <div>
+                          <Label className="text-sm font-medium">Smart Market Rules</Label>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Comprehensive rules and criteria based on your question
+                          </p>
+                          <div className="mt-2 max-h-96 overflow-y-auto space-y-3 pr-2">
+                            {descriptionSuggestions.map((suggestion, index) => (
+                              <div
+                                key={index}
+                                className="w-full p-4 text-left text-sm bg-muted/50 hover:bg-muted rounded-lg transition-colors border border-transparent hover:border-primary/20 group"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-shrink-0 mt-1">
+                                    <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                      {index + 1}
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-foreground group-hover:text-primary transition-colors mb-2">
+                                      {suggestion.title}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground space-y-2">
+                                      <div className="line-clamp-2">
+                                        {suggestion.description}
+                                      </div>
+                                      
+                                      {/* Context Information */}
+                                      <div className="space-y-1 text-xs">
+                                        <div className="font-medium text-foreground/80">Market Context:</div>
+                                        <div className="line-clamp-1 text-muted-foreground">
+                                          {suggestion.marketContext}
+                                        </div>
+                                        
+                                        <div className="font-medium text-foreground/80">Token Analysis:</div>
+                                        <div className="line-clamp-1 text-muted-foreground">
+                                          {suggestion.tokenContext}
+                                        </div>
+                                        
+                                        <div className="font-medium text-foreground/80">Liquidity Impact:</div>
+                                        <div className="line-clamp-1 text-muted-foreground">
+                                          {suggestion.liquidityContext}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                                        <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
+                                          {Math.round(suggestion.confidence * 100)}% confidence
+                                        </span>
+                                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                          {suggestion.questionType?.replace('_', ' ') || 'comprehensive'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Action Buttons */}
+                                <div className="flex gap-2 mt-3 pt-3 border-t border-muted/30">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDescription(suggestion.description)}
+                                    className="flex-1 h-8 text-xs"
+                                  >
+                                    Use This Description
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedDescription(suggestion)
+                                      setShowDescriptionModal(true)
+                                    }}
+                                    className="h-8 text-xs"
+                                  >
+                                    View Details
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : question && (
+                        <div className="p-3 bg-muted/30 rounded-lg">
+                          <p className="text-sm text-muted-foreground">
+                            Enter a question to generate detailed market rules and criteria.
+                          </p>
+                        </div>
+                      )}
                   </div>
                   </div>
                 )}
@@ -1579,6 +1872,92 @@ function CreateMarketContent() {
                   >
                     View Market
                   </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Description Details Modal */}
+      <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedDescription?.title}</DialogTitle>
+          </DialogHeader>
+          
+          {selectedDescription && (
+            <div className="space-y-6">
+              {/* Main Description */}
+              <div>
+                <h3 className="font-semibold mb-2">Market Description</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.description}</p>
+              </div>
+
+              {/* Resolution Criteria */}
+              <div>
+                <h3 className="font-semibold mb-2">Resolution Criteria</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.resolutionCriteria}</p>
+              </div>
+
+              {/* Data Sources */}
+              <div>
+                <h3 className="font-semibold mb-2">Data Sources</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.dataSources}</p>
+              </div>
+
+              {/* Market Context */}
+              <div>
+                <h3 className="font-semibold mb-2">Market Context</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.marketContext}</p>
+              </div>
+
+              {/* Token Analysis */}
+              <div>
+                <h3 className="font-semibold mb-2">Token Analysis</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.tokenContext}</p>
+              </div>
+
+              {/* Historical Context */}
+              <div>
+                <h3 className="font-semibold mb-2">Historical Performance</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.historicalContext}</p>
+              </div>
+
+              {/* Liquidity Context */}
+              <div>
+                <h3 className="font-semibold mb-2">Liquidity Impact</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.liquidityContext}</p>
+              </div>
+
+              {/* Edge Cases */}
+              <div>
+                <h3 className="font-semibold mb-2">Edge Cases & Exceptions</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.edgeCases}</p>
+              </div>
+
+              {/* Dispute Resolution */}
+              <div>
+                <h3 className="font-semibold mb-2">Dispute Resolution</h3>
+                <p className="text-sm text-muted-foreground">{selectedDescription.disputeResolution}</p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  onClick={() => {
+                    setDescription(selectedDescription.description)
+                    setShowDescriptionModal(false)
+                  }}
+                  className="flex-1"
+                >
+                  Use This Description
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDescriptionModal(false)}
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
