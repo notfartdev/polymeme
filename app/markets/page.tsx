@@ -10,7 +10,8 @@ import { useI18n } from "@/lib/i18n"
 import { format } from "date-fns"
 import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
 
-const categories = ["Active", "Completed"] // Active and completed markets
+const categories = ["All", "Active", "Completed"] // All, Active and completed markets
+const tokenFilters = ["All", "WIF", "SOL", "ETH", "BTC", "PEPE", "PUMP", "SHIBA", "TROLL"] // Token filters
 
 // Interface for real market data
 interface MarketData {
@@ -24,12 +25,17 @@ interface MarketData {
   status: 'active' | 'pending' | 'closed'
   creator: string
   tokenMint?: string
+  tokenSymbol?: string
+  tokenName?: string
   multipleChoiceOptions?: string[]
   minValue?: string
   maxValue?: string
   unit?: string
   earliestDate?: string
   latestDate?: string
+  totalYesBets?: number
+  totalNoBets?: number
+  totalVolume?: number
 }
 
 // Mock markets for demo (will be replaced by real data)
@@ -39,6 +45,7 @@ const mockMarkets: any[] = []
 export default function MarketsPage() {
   const { t } = useI18n()
   const [selectedCategory, setSelectedCategory] = useState("Active")
+  const [selectedToken, setSelectedToken] = useState("All")
   const [realMarkets, setRealMarkets] = useState<MarketData[]>([])
   const [loading, setLoading] = useState(true)
   const [tokenImages, setTokenImages] = useState<Record<string, string>>({})
@@ -78,46 +85,32 @@ export default function MarketsPage() {
 
   // Only show real markets from database
   const allMarkets = realMarkets.map((market, index) => {
-    // Generate varied mock percentages based on market characteristics
-    const getMockPercentage = (market: MarketData, index: number) => {
-      // Use market ID hash to generate consistent but varied percentages
-      const hash = market.id.split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0)
-        return a & a
-      }, 0)
-      
-      // Generate percentage between 25% and 85% based on hash
-      const basePercentage = Math.abs(hash) % 60 + 25
-      
-      // Adjust based on question type for more realism
-      const question = market.question.toLowerCase()
-      let adjustment = 0
-      
-      if (question.includes('pump') || question.includes('reach') || question.includes('hit')) {
-        adjustment = -5 // Slightly lower odds for bullish predictions
-      } else if (question.includes('drop') || question.includes('crash') || question.includes('below')) {
-        adjustment = 5 // Slightly higher odds for bearish predictions
-      } else if (question.includes('1h') || question.includes('3h')) {
-        adjustment = -10 // Lower odds for very short timeframes
-      } else if (question.includes('24h') || question.includes('1d')) {
-        adjustment = 5 // Higher odds for daily predictions
-      }
-      
-      return Math.max(15, Math.min(90, basePercentage + adjustment))
-    }
+    // Calculate real percentage from bet data
+    const totalYes = market.totalYesBets || 0
+    const totalNo = market.totalNoBets || 0
+    const totalBets = totalYes + totalNo
+    
+    // Calculate percentage based on real bet data, fallback to 50% if no bets
+    const realPercentage = totalBets > 0 ? Math.round((totalYes / totalBets) * 100) : 50
+    
+    // Format real volume
+    const realVolume = market.totalVolume ? `$${(market.totalVolume / 1000).toFixed(1)}k` : "$0"
 
     return {
       id: market.id,
       question: market.question,
       category: "Crypto", // All user-created markets are crypto for now
       image: null,
-      percentage: getMockPercentage(market, index),
-      volume: "$0", // Mock volume for now
+      percentage: realPercentage,
+      volume: realVolume,
       asset: market.asset,
       status: market.status,
       closingDate: market.closingDate,
       creator: market.creator,
-      isReal: true
+      isReal: true,
+      totalYesBets: totalYes,
+      totalNoBets: totalNo,
+      totalBets: totalBets
     }
   })
 
@@ -127,8 +120,18 @@ export default function MarketsPage() {
     const closingDate = new Date(market.closingDate)
     const isActive = closingDate.getTime() > now.getTime()
     
-    const matchesCategory = selectedCategory === "Active" ? isActive : !isActive
-    return matchesCategory
+    let matchesCategory = true
+    if (selectedCategory === "Active") {
+      matchesCategory = isActive
+    } else if (selectedCategory === "Completed") {
+      matchesCategory = !isActive
+    }
+    // "All" shows everything
+    
+    // Filter by token type
+    const matchesToken = selectedToken === "All" || market.asset === selectedToken
+    
+    return matchesCategory && matchesToken
   })
 
   return (
@@ -153,6 +156,21 @@ export default function MarketsPage() {
               >
                 {category === "Trending" && <TrendingUp className="w-4 h-4 mr-2" />}
                 {category}
+              </Button>
+            ))}
+          </div>
+
+          {/* Token Filter Navigation */}
+          <div className="flex gap-2 overflow-x-auto pb-2 mt-2">
+            {tokenFilters.map((token) => (
+              <Button
+                key={token}
+                variant={selectedToken === token ? "outline" : "ghost"}
+                onClick={() => setSelectedToken(token)}
+                className="whitespace-nowrap text-xs"
+                size="sm"
+              >
+                {token}
               </Button>
             ))}
           </div>
@@ -306,7 +324,7 @@ export default function MarketsPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
-                        <span>{market.totalYesBets + market.totalNoBets || 0} bets</span>
+                        <span>{(market.totalYesBets || 0) + (market.totalNoBets || 0)} bets</span>
                       </div>
                     </div>
                     
@@ -354,7 +372,7 @@ export default function MarketsPage() {
                       )}
                       <div className="flex items-center gap-1">
                         <span className="text-green-600 font-medium">
-                          {market.totalVolume ? `${(market.totalVolume / 1000).toFixed(1)}K SOL` : "0 SOL"}
+                          {market.totalVolume ? `${(market.totalVolume / 1000).toFixed(1)}K ${market.asset}` : `0 ${market.asset}`}
                         </span>
                       </div>
                     </div>
