@@ -1,63 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Connection, PublicKey } from '@solana/web3.js'
-import { getAccount, getAssociatedTokenAddress } from '@solana/spl-token'
 
-interface TokenBalanceRequest {
-  walletAddress: string
-  tokenMint: string
-}
-
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const body: TokenBalanceRequest = await request.json()
-    const { walletAddress, tokenMint } = body
+    const { searchParams } = new URL(request.url)
+    const walletAddress = searchParams.get('wallet')
+    const tokenMint = searchParams.get('tokenMint')
 
-    // Validate required fields
     if (!walletAddress || !tokenMint) {
       return NextResponse.json(
-        { error: 'Missing required fields: walletAddress and tokenMint' },
+        { error: 'Missing wallet address or token mint' },
         { status: 400 }
       )
     }
 
-    // Validate wallet address format
-    try {
-      new PublicKey(walletAddress)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid wallet address format' },
-        { status: 400 }
-      )
+    // For now, use mock balances for development
+    // In production, this would connect to Solana RPC and check real balances
+    const mockBalances: Record<string, Record<string, number>> = {
+      '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgHkv': {
+        'So11111111111111111111111111111111111111112': 10.5, // SOL
+        'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm': 1000, // WIF
+        'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': 500, // BONK
+      },
+      '9yMNvg3DX98f45TXJSDpbD5jBkheTqA83TZRuJosgHkv': {
+        'So11111111111111111111111111111111111111112': 5.2, // SOL
+        'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm': 750, // WIF
+        'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': 300, // BONK
+      },
+      '5zLKtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgHkv': {
+        'So11111111111111111111111111111111111111112': 15.8, // SOL
+        'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm': 1200, // WIF
+        'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': 800, // BONK
+      }
     }
 
-    // Validate token mint format
-    try {
-      new PublicKey(tokenMint)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid token mint format' },
-        { status: 400 }
-      )
-    }
-
-    // TODO: In real implementation, this would:
-    // 1. Connect to Solana RPC
-    // 2. Get the associated token account
-    // 3. Fetch the token balance
-    // 4. Return the balance in token units
-
-    // For now, simulate token balance checking
-    const mockBalance = await checkTokenBalance(walletAddress, tokenMint)
+    const balance = mockBalances[walletAddress]?.[tokenMint] || 0
+    const hasAccount = balance > 0
 
     return NextResponse.json({
       success: true,
       walletAddress,
       tokenMint,
-      balance: mockBalance.balance,
-      balanceFormatted: mockBalance.balanceFormatted,
-      hasBalance: mockBalance.balance > 0,
-      sufficientForBet: mockBalance.balance >= 100, // Minimum bet amount
-      lastChecked: new Date().toISOString()
+      balance,
+      hasAccount,
+      sufficientForMarket: balance >= 1, // Minimum 1 token required
+      message: balance >= 1 ? 
+        `You have ${balance} tokens. Sufficient for market creation.` :
+        `You have ${balance} tokens. You need at least 1 token to create a market.`
     })
 
   } catch (error) {
@@ -66,21 +54,5 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to check token balance' },
       { status: 500 }
     )
-  }
-}
-
-// Mock token balance checker - in real implementation, this would query Solana
-async function checkTokenBalance(walletAddress: string, tokenMint: string) {
-  // Simulate different balances based on wallet address
-  const walletHash = walletAddress.slice(-4)
-  const baseBalance = parseInt(walletHash, 16) * 1000 // Convert last 4 chars to number
-  
-  // Add some randomness
-  const randomFactor = Math.random() * 0.5 + 0.75 // 0.75 to 1.25
-  const balance = Math.floor(baseBalance * randomFactor)
-  
-  return {
-    balance,
-    balanceFormatted: `${balance.toLocaleString()} tokens`
   }
 }

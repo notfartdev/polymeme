@@ -32,6 +32,9 @@ interface OrderBookData {
     noPool: { totalTokens: number; totalBets: number }
   }
   volume24h: number
+  tokenSymbol: string
+  tokenName: string
+  tokenMint: string
 }
 
 interface OrderBookProps {
@@ -93,10 +96,13 @@ const generateMockOrderBook = (marketId: string): OrderBookData => {
       walletAddress: `${Math.random().toString(36).substr(2, 8)}${Math.random().toString(36).substr(2, 8)}${Math.random().toString(36).substr(2, 8)}${Math.random().toString(36).substr(2, 8)}`,
       transactionHash: `${Math.random().toString(36).substr(2, 8)}...${Math.random().toString(36).substr(2, 8)}`
     },
-    poolData: {
-      yesPool: { totalTokens: baseYesPrice * 1000, totalBets: yesOrders.length },
-      noPool: { totalTokens: baseNoPrice * 1000, totalBets: noOrders.length }
-    },
+      poolData: {
+        yesPool: { totalTokens: baseYesPrice * 1000, totalBets: yesOrders.length },
+        noPool: { totalTokens: baseNoPrice * 1000, totalBets: noOrders.length }
+      },
+      tokenSymbol: 'SOL', // Default fallback
+      tokenName: 'Solana',
+      tokenMint: 'So11111111111111111111111111111111111111112',
     volume24h: Math.random() * 10000 + 1000
   }
 }
@@ -110,15 +116,23 @@ export function OrderBook({ marketId, className = "" }: OrderBookProps) {
     const fetchOrderBook = async () => {
       try {
         setLoading(true)
-        // In real implementation, fetch from API
-        // const response = await fetch(`/api/markets/${marketId}/orderbook`)
-        // const data = await response.json()
         
-        // For now, use mock data
-        const mockData = generateMockOrderBook(marketId)
-        setOrderBookData(mockData)
+        // Fetch real data from API
+        const response = await fetch(`/api/markets/${marketId}/orderbook`)
+        if (response.ok) {
+          const data = await response.json()
+          setOrderBookData(data)
+        } else {
+          // Fallback to mock data if API fails
+          console.warn('Failed to fetch real order book data, using mock data')
+          const mockData = generateMockOrderBook(marketId)
+          setOrderBookData(mockData)
+        }
       } catch (error) {
         console.error('Error fetching order book:', error)
+        // Fallback to mock data on error
+        const mockData = generateMockOrderBook(marketId)
+        setOrderBookData(mockData)
       } finally {
         setLoading(false)
       }
@@ -203,7 +217,7 @@ export function OrderBook({ marketId, className = "" }: OrderBookProps) {
     )
   }
 
-  const { yesOrders, noOrders, lastTrade, poolData, volume24h } = orderBookData
+  const { yesOrders, noOrders, lastTrade, poolData, volume24h, tokenSymbol, tokenName } = orderBookData
 
   return (
     <Card className={className}>
@@ -252,17 +266,17 @@ export function OrderBook({ marketId, className = "" }: OrderBookProps) {
             <div className="text-sm text-muted-foreground">Pool Totals</div>
             <div className="flex items-center justify-center gap-2">
               <Badge variant="outline" className="text-green-600 border-green-200">
-                YES: {poolData.yesPool.totalTokens.toFixed(1)} {poolData.tokenSymbol || 'SOL'}
+                YES: {poolData.yesPool.totalTokens.toFixed(1)} {tokenSymbol}
               </Badge>
               <Badge variant="outline" className="text-red-600 border-red-200">
-                NO: {poolData.noPool.totalTokens.toFixed(1)} {poolData.tokenSymbol || 'SOL'}
+                NO: {poolData.noPool.totalTokens.toFixed(1)} {tokenSymbol}
               </Badge>
             </div>
           </div>
           <div className="text-center">
             <div className="text-sm text-muted-foreground">Total Pool</div>
             <div className="font-semibold">
-              {(poolData.yesPool.totalTokens + poolData.noPool.totalTokens).toFixed(1)} {poolData.tokenSymbol || 'SOL'}
+              {(poolData.yesPool.totalTokens + poolData.noPool.totalTokens).toFixed(1)} {tokenSymbol}
             </div>
           </div>
         </div>
@@ -378,7 +392,7 @@ export function OrderBook({ marketId, className = "" }: OrderBookProps) {
           {selectedSide === 'all' && (
             <div className="text-center py-2 border-y border-muted">
               <div className="text-xs text-muted-foreground">
-                Total Pool: {(poolData.yesPool.totalTokens + poolData.noPool.totalTokens).toFixed(1)} {poolData.tokenSymbol || 'SOL'}
+                Total Pool: {(poolData.yesPool.totalTokens + poolData.noPool.totalTokens).toFixed(1)} {tokenSymbol}
               </div>
             </div>
           )}

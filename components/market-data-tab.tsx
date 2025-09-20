@@ -95,7 +95,7 @@ export function MarketDataTab({ asset, tokenMint }: MarketDataTabProps) {
     const interval = intervals[timeframe as keyof typeof intervals] || intervals["7d"]
     const dataPoints = timeframe === "1d" ? 24 : timeframe === "7d" ? 7 : timeframe === "30d" ? 30 : 30
     
-    const basePrice = tokenData?.currentPrice || 0.000001
+    const basePrice = tokenData?.current_price || 0.000001
     const data: PriceData[] = []
     
     for (let i = dataPoints; i >= 0; i--) {
@@ -208,7 +208,7 @@ export function MarketDataTab({ asset, tokenMint }: MarketDataTabProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="text-2xl font-bold">{formatPrice(tokenData?.currentPrice)}</div>
+            <div className="text-2xl font-bold">{formatPrice(tokenData?.current_price)}</div>
             <div className="text-sm text-muted-foreground">Current Price</div>
           </div>
           <div className="text-center p-4 bg-muted/50 rounded-lg">
@@ -221,11 +221,11 @@ export function MarketDataTab({ asset, tokenMint }: MarketDataTabProps) {
             <div className="text-sm text-muted-foreground">{selectedTimeframe} Change</div>
           </div>
           <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="text-2xl font-bold">{formatMarketCap(tokenData?.marketCap)}</div>
+            <div className="text-2xl font-bold">{formatMarketCap(tokenData?.market_cap)}</div>
             <div className="text-sm text-muted-foreground">Market Cap</div>
           </div>
           <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="text-2xl font-bold">{formatMarketCap(tokenData?.volume24h)}</div>
+            <div className="text-2xl font-bold">{formatMarketCap(tokenData?.total_volume)}</div>
             <div className="text-sm text-muted-foreground">24h Volume</div>
           </div>
         </div>
@@ -279,21 +279,21 @@ export function MarketDataTab({ asset, tokenMint }: MarketDataTabProps) {
             <div className="flex justify-between">
               <span className="text-muted-foreground">ATH Date</span>
               <span className="font-medium">
-                {tokenData?.athDate ? new Date(tokenData.athDate).toLocaleDateString() : "N/A"}
+                {tokenData?.last_updated ? new Date(tokenData.last_updated).toLocaleDateString() : "N/A"}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">From ATH</span>
               <span className="font-medium text-red-500">
-                {tokenData?.ath && tokenData?.currentPrice && tokenData.ath > 0
-                  ? `-${(((tokenData.ath - tokenData.currentPrice) / tokenData.ath) * 100).toFixed(2)}%`
+                {tokenData?.ath && tokenData?.current_price && tokenData.ath > 0
+                  ? `-${(((tokenData.ath - tokenData.current_price) / tokenData.ath) * 100).toFixed(2)}%`
                   : "N/A"
                 }
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Market Cap Rank</span>
-              <span className="font-medium">#{tokenData?.marketCapRank || "N/A"}</span>
+              <span className="font-medium">#{tokenData?.market_cap_rank || "N/A"}</span>
             </div>
           </div>
         </Card>
@@ -307,20 +307,20 @@ export function MarketDataTab({ asset, tokenMint }: MarketDataTabProps) {
             <div className="flex justify-between">
               <span className="text-muted-foreground">24h High</span>
               <span className="font-medium">
-                {formatPrice(tokenData?.currentPrice ? tokenData.currentPrice * 1.05 : undefined)}
+                {formatPrice(tokenData?.current_price ? tokenData.current_price * 1.05 : undefined)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">24h Low</span>
               <span className="font-medium">
-                {formatPrice(tokenData?.currentPrice ? tokenData.currentPrice * 0.95 : undefined)}
+                {formatPrice(tokenData?.current_price ? tokenData.current_price * 0.95 : undefined)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Volume/Market Cap</span>
               <span className="font-medium">
-                {tokenData?.volume24h && tokenData?.marketCap && tokenData.marketCap > 0
-                  ? `${((tokenData.volume24h / tokenData.marketCap) * 100).toFixed(2)}%`
+                {tokenData?.total_volume && tokenData?.market_cap && tokenData.market_cap > 0
+                  ? `${((tokenData.total_volume / tokenData.market_cap) * 100).toFixed(2)}%`
                   : "N/A"
                 }
               </span>
@@ -328,7 +328,7 @@ export function MarketDataTab({ asset, tokenMint }: MarketDataTabProps) {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Circulating Supply</span>
               <span className="font-medium">
-                {tokenData?.circulatingSupply ? `${(tokenData.circulatingSupply / 1e9).toFixed(2)}B` : "N/A"}
+                {tokenData?.circulating_supply ? `${(tokenData.circulating_supply / 1e9).toFixed(2)}B` : "N/A"}
               </span>
             </div>
           </div>

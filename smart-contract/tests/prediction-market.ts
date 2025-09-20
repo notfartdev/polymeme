@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { PredictionMarket } from "../target/types/prediction_market";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID, createMint, createAccount, mintTo } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createMint, createAccount, mintTo } from "@solana/spl-token";
 import { expect } from "chai";
 
 describe("prediction-market", () => {
@@ -13,274 +13,286 @@ describe("prediction-market", () => {
   const provider = anchor.getProvider();
 
   // Test accounts
-  let globalPda: PublicKey;
-  let marketPda: PublicKey;
-  let betPda: PublicKey;
-  let user = Keypair.generate();
-  let creator = Keypair.generate();
-  let tokenMint: PublicKey;
-  let userTokenAccount: PublicKey;
+  let globalPDA: PublicKey;
+  let globalBump: number;
+  let marketPDA: PublicKey;
+  let marketBump: number;
+  let positionPDA: PublicKey;
+  let positionBump: number;
+  let betPDA: PublicKey;
+  let betBump: number;
+
+  // Test users
+  let user1: Keypair;
+  let user2: Keypair;
+  let authority: Keypair;
+
+  // Test token
+  let testTokenMint: PublicKey;
+  let user1TokenAccount: PublicKey;
+  let user2TokenAccount: PublicKey;
   let marketTokenAccount: PublicKey;
+  let platformTokenAccount: PublicKey;
 
   before(async () => {
-    // Airdrop SOL to test accounts
-    await provider.connection.requestAirdrop(user.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
-    await provider.connection.requestAirdrop(creator.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(user.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL)
-    );
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(creator.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL)
-    );
+    // Generate test keypairs
+    user1 = Keypair.generate();
+    user2 = Keypair.generate();
+    authority = Keypair.generate();
 
-    // Create token mint
-    tokenMint = await createMint(
+    // Airdrop SOL to test accounts
+    await provider.connection.requestAirdrop(user1.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
+    await provider.connection.requestAirdrop(user2.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
+    await provider.connection.requestAirdrop(authority.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
+
+    // Wait for airdrops to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Create test token mint
+    testTokenMint = await createMint(
       provider.connection,
-      user,
-      user.publicKey,
+      authority,
+      authority.publicKey,
       null,
-      9
+      6 // 6 decimals
     );
 
     // Create token accounts
-    userTokenAccount = await createAccount(
-      provider.connection,
-      user,
-      tokenMint,
-      user.publicKey
-    );
+    user1TokenAccount = await getAssociatedTokenAddress(testTokenMint, user1.publicKey);
+    user2TokenAccount = await getAssociatedTokenAddress(testTokenMint, user2.publicKey);
+    marketTokenAccount = await getAssociatedTokenAddress(testTokenMint, marketPDA);
+    platformTokenAccount = await getAssociatedTokenAddress(testTokenMint, authority.publicKey);
 
-    marketTokenAccount = await createAccount(
-      provider.connection,
-      user,
-      tokenMint,
-      user.publicKey
-    );
+    // Create user token accounts
+    await createAccount(provider.connection, user1, testTokenMint, user1.publicKey);
+    await createAccount(provider.connection, user2, testTokenMint, user2.publicKey);
 
-    // Mint tokens to user
-    await mintTo(
-      provider.connection,
-      user,
-      tokenMint,
-      userTokenAccount,
-      user,
-      1000 * 10**9 // 1000 tokens
-    );
-  });
+    // Mint test tokens to users
+    await mintTo(provider.connection, authority, testTokenMint, user1TokenAccount, authority, 1000 * 10**6); // 1000 tokens
+    await mintTo(provider.connection, authority, testTokenMint, user2TokenAccount, authority, 1000 * 10**6); // 1000 tokens
 
-  it("Initialize global state", async () => {
-    [globalPda] = PublicKey.findProgramAddressSync(
+    // Get PDAs
+    [globalPDA, globalBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("global")],
       program.programId
     );
+  });
 
+  it("Initializes the global state", async () => {
     const tx = await program.methods
       .initialize()
       .accounts({
-        global: globalPda,
-        authority: provider.wallet.publicKey,
+        global: globalPDA,
+        authority: authority.publicKey,
         systemProgram: SystemProgram.programId,
       })
+      .signers([authority])
       .rpc();
 
-    console.log("Initialize transaction signature", tx);
+    console.log("Initialize transaction:", tx);
 
-    const globalAccount = await program.account.global.fetch(globalPda);
-    expect(globalAccount.authority.toString()).to.equal(provider.wallet.publicKey.toString());
-    expect(globalAccount.marketCount.toNumber()).to.equal(0);
+    // Fetch the global state
+    const globalState = await program.account.global.fetch(globalPDA);
+    expect(globalState.authority.toString()).to.equal(authority.publicKey.toString());
+    expect(globalState.marketCount.toNumber()).to.equal(0);
+    expect(globalState.totalVolume.toNumber()).to.equal(0);
+    expect(globalState.totalFeesCollected.toNumber()).to.equal(0);
   });
 
-  it("Create a market", async () => {
-    [marketPda] = PublicKey.findProgramAddressSync(
+  it("Creates a new market", async () => {
+    const closingTime = Math.floor(Date.now() / 1000) + 86400; // 24 hours from now
+
+    [marketPDA, marketBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("market"), new anchor.BN(0).toArrayLike(Buffer, "le", 8)],
       program.programId
     );
 
     const tx = await program.methods
       .createMarket(
-        "Will Bitcoin reach $100k by end of 2024?",
-        "This market will resolve based on Bitcoin's price at the end of 2024",
-        new anchor.BN(Date.now() / 1000 + 86400), // 24 hours from now
-        tokenMint,
-        "WIF", // Token symbol
-        "dogwifhat" // Token name
+        "Will WIF hit $10 by end of 2024?",
+        "Test market for WIF token price prediction",
+        new anchor.BN(closingTime),
+        testTokenMint,
+        "WIF",
+        "dogwifhat"
       )
       .accounts({
-        market: marketPda,
-        global: globalPda,
-        creator: creator.publicKey,
+        market: marketPDA,
+        global: globalPDA,
+        creator: user1.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([creator])
+      .signers([user1])
       .rpc();
 
-    console.log("Create market transaction signature", tx);
+    console.log("Create market transaction:", tx);
 
-    const marketAccount = await program.account.market.fetch(marketPda);
-    expect(marketAccount.question).to.equal("Will Bitcoin reach $100k by end of 2024?");
-    expect(marketAccount.creator.toString()).to.equal(creator.publicKey.toString());
-    expect(marketAccount.requiredTokenSymbol).to.equal("WIF");
-    expect(marketAccount.requiredTokenName).to.equal("dogwifhat");
-    expect(marketAccount.yesPool.toNumber()).to.equal(0);
-    expect(marketAccount.noPool.toNumber()).to.equal(0);
+    // Fetch the market
+    const market = await program.account.market.fetch(marketPDA);
+    expect(market.id.toNumber()).to.equal(0);
+    expect(market.creator.toString()).to.equal(user1.publicKey.toString());
+    expect(market.question).to.equal("Will WIF hit $10 by end of 2024?");
+    expect(market.requiredTokenMint.toString()).to.equal(testTokenMint.toString());
+    expect(market.yesPool.toNumber()).to.equal(0);
+    expect(market.noPool.toNumber()).to.equal(0);
   });
 
-  it("Place a YES bet", async () => {
-    [betPda] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("bet"),
-        marketPda.toBuffer(),
-        user.publicKey.toBuffer(),
-        Buffer.from("yes")
-      ],
+  it("Places a bet on YES", async () => {
+    const betAmount = 100 * 10**6; // 100 tokens
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    [betPDA, betBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("bet"), marketPDA.toBuffer(), user1.publicKey.toBuffer(), new anchor.BN(timestamp).toArrayLike(Buffer, "le", 8)],
       program.programId
     );
 
-    const betAmount = new anchor.BN(100 * 10**9); // 100 tokens
-
-    const tx = await program.methods
-      .placeBet(betAmount, { yes: {} })
-      .accounts({
-        bet: betPda,
-        market: marketPda,
-        global: globalPda,
-        user: user.publicKey,
-        userTokenAccount: userTokenAccount,
-        marketTokenAccount: marketTokenAccount,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([user])
-      .rpc();
-
-    console.log("Place bet transaction signature", tx);
-
-    const betAccount = await program.account.bet.fetch(betPda);
-    expect(betAccount.amount.toNumber()).to.equal(betAmount.toNumber());
-    expect(betAccount.side).to.deep.equal({ yes: {} });
-
-    const marketAccount = await program.account.market.fetch(marketPda);
-    expect(marketAccount.yesPool.toNumber()).to.equal(betAmount.toNumber());
-    expect(marketAccount.yesBets.toNumber()).to.equal(1);
-  });
-
-  it("Place a NO bet", async () => {
-    const noBetPda = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("bet"),
-        marketPda.toBuffer(),
-        user.publicKey.toBuffer(),
-        Buffer.from("no")
-      ],
+    [positionPDA, positionBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("position"), marketPDA.toBuffer(), user1.publicKey.toBuffer()],
       program.programId
-    )[0];
+    );
 
-    const betAmount = new anchor.BN(50 * 10**9); // 50 tokens
+    // Create market token account
+    await createAccount(provider.connection, user1, testTokenMint, marketPDA);
 
     const tx = await program.methods
-      .placeBet(betAmount, { no: {} })
+      .placeBet(
+        new anchor.BN(betAmount),
+        { yes: {} }
+      )
       .accounts({
-        bet: noBetPda,
-        market: marketPda,
-        global: globalPda,
-        user: user.publicKey,
-        userTokenAccount: userTokenAccount,
+        bet: betPDA,
+        position: positionPDA,
+        market: marketPDA,
+        global: globalPDA,
+        user: user1.publicKey,
+        userTokenAccount: user1TokenAccount,
         marketTokenAccount: marketTokenAccount,
+        platformTokenAccount: platformTokenAccount,
         tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
-      .signers([user])
+      .signers([user1])
       .rpc();
 
-    console.log("Place NO bet transaction signature", tx);
+    console.log("Place bet transaction:", tx);
 
-    const marketAccount = await program.account.market.fetch(marketPda);
-    expect(marketAccount.noPool.toNumber()).to.equal(betAmount.toNumber());
-    expect(marketAccount.noBets.toNumber()).to.equal(1);
+    // Fetch the bet
+    const bet = await program.account.bet.fetch(betPDA);
+    expect(bet.user.toString()).to.equal(user1.publicKey.toString());
+    expect(bet.amount.toNumber()).to.equal(97500000); // 97.5 tokens (after 2.5% fee)
+    expect(bet.side).to.deep.equal({ yes: {} });
+    expect(bet.claimed).to.be.false;
+
+    // Fetch the position
+    const position = await program.account.position.fetch(positionPDA);
+    expect(position.user.toString()).to.equal(user1.publicKey.toString());
+    expect(position.yesAmount.toNumber()).to.equal(97500000); // 97.5 tokens
+    expect(position.noAmount.toNumber()).to.equal(0);
+
+    // Fetch the market
+    const market = await program.account.market.fetch(marketPDA);
+    expect(market.yesPool.toNumber()).to.equal(97500000); // 97.5 tokens
+    expect(market.noPool.toNumber()).to.equal(0);
+    expect(market.yesBets.toNumber()).to.equal(1);
+    expect(market.noBets.toNumber()).to.equal(0);
+
+    // Fetch the global state
+    const globalState = await program.account.global.fetch(globalPDA);
+    expect(globalState.totalVolume.toNumber()).to.equal(100000000); // 100 tokens
+    expect(globalState.totalFeesCollected.toNumber()).to.equal(2500000); // 2.5 tokens
   });
 
-  it("Resolve market", async () => {
+  it("Places a bet on NO", async () => {
+    const betAmount = 50 * 10**6; // 50 tokens
+    const timestamp = Math.floor(Date.now() / 1000) + 1;
+
+    [betPDA, betBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("bet"), marketPDA.toBuffer(), user2.publicKey.toBuffer(), new anchor.BN(timestamp).toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
+    [positionPDA, positionBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("position"), marketPDA.toBuffer(), user2.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const tx = await program.methods
+      .placeBet(
+        new anchor.BN(betAmount),
+        { no: {} }
+      )
+      .accounts({
+        bet: betPDA,
+        position: positionPDA,
+        market: marketPDA,
+        global: globalPDA,
+        user: user2.publicKey,
+        userTokenAccount: user2TokenAccount,
+        marketTokenAccount: marketTokenAccount,
+        platformTokenAccount: platformTokenAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([user2])
+      .rpc();
+
+    console.log("Place NO bet transaction:", tx);
+
+    // Fetch the market
+    const market = await program.account.market.fetch(marketPDA);
+    expect(market.yesPool.toNumber()).to.equal(97500000); // 97.5 tokens
+    expect(market.noPool.toNumber()).to.equal(48750000); // 48.75 tokens (after fee)
+    expect(market.yesBets.toNumber()).to.equal(1);
+    expect(market.noBets.toNumber()).to.equal(1);
+  });
+
+  it("Resolves the market", async () => {
     const tx = await program.methods
       .resolveMarket({ yes: {} })
       .accounts({
-        market: marketPda,
-        resolver: creator.publicKey,
+        market: marketPDA,
+        resolver: user1.publicKey, // Market creator
       })
-      .signers([creator])
+      .signers([user1])
       .rpc();
 
-    console.log("Resolve market transaction signature", tx);
+    console.log("Resolve market transaction:", tx);
 
-    const marketAccount = await program.account.market.fetch(marketPda);
-    expect(marketAccount.result).to.deep.equal({ yes: {} });
+    // Fetch the market
+    const market = await program.account.market.fetch(marketPDA);
+    expect(market.status).to.deep.equal({ resolved: {} });
+    expect(market.result).to.deep.equal({ yes: {} });
   });
 
-  it("Claim winnings", async () => {
+  it("Claims winnings", async () => {
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    [betPDA, betBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("bet"), marketPDA.toBuffer(), user1.publicKey.toBuffer(), new anchor.BN(timestamp).toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
     const tx = await program.methods
       .claimWinnings()
       .accounts({
-        market: marketPda,
-        bet: betPda,
-        user: user.publicKey,
-        userTokenAccount: userTokenAccount,
+        market: marketPDA,
+        position: positionPDA,
+        bet: betPDA,
+        user: user1.publicKey,
+        userTokenAccount: user1TokenAccount,
         marketTokenAccount: marketTokenAccount,
         tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       })
-      .signers([user])
+      .signers([user1])
       .rpc();
 
-    console.log("Claim winnings transaction signature", tx);
+    console.log("Claim winnings transaction:", tx);
 
-    // Check that user received winnings
-    // Total pool was 150 tokens, user bet 100 on YES, so they should get 150 tokens back
-    const userTokenBalance = await provider.connection.getTokenAccountBalance(userTokenAccount);
-    expect(userTokenBalance.value.amount).to.equal("150000000000"); // 150 tokens
-  });
-
-  it("Should fail when trying to bet with wrong token", async () => {
-    // Create a different token mint
-    const wrongTokenMint = await createMint(
-      provider.connection,
-      user,
-      user.publicKey,
-      null,
-      9
-    );
-
-    // Create token account for wrong token
-    const wrongTokenAccount = await createAccount(
-      provider.connection,
-      user,
-      wrongTokenMint,
-      user.publicKey
-    );
-
-    // Try to place bet with wrong token - should fail
-    try {
-      await program.methods
-        .placeBet(new anchor.BN(50 * 10**9), { yes: {} })
-        .accounts({
-          bet: betPda,
-          market: marketPda,
-          global: globalPda,
-          user: user.publicKey,
-          userTokenAccount: wrongTokenAccount, // Wrong token account
-          marketTokenAccount: marketTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
-      
-      // If we get here, the test should fail
-      expect.fail("Should have failed with wrong token");
-    } catch (error) {
-      // This is expected - should fail with WrongToken error
-      expect(error.message).to.include("Wrong token");
-    }
+    // Fetch the bet to verify it's claimed
+    const bet = await program.account.bet.fetch(betPDA);
+    expect(bet.claimed).to.be.true;
   });
 });

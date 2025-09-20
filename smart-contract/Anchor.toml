@@ -3,13 +3,13 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-prediction_market = "YourProgramIdHere"
+prediction_market = "So11111111111111111111111111111111111111112"
 
 [programs.devnet]
-prediction_market = "YourProgramIdHere"
+prediction_market = "So11111111111111111111111111111111111111112"
 
 [programs.mainnet]
-prediction_market = "YourProgramIdHere"
+prediction_market = "So11111111111111111111111111111111111111112"
 
 [registry]
 url = "https://api.apr.dev"

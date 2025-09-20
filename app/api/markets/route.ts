@@ -110,6 +110,59 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Require initial bet for market creation
+    if (!body.initialBetAmount || parseFloat(body.initialBetAmount) <= 0) {
+      return NextResponse.json(
+        { error: 'Initial bet amount is required to create a market' },
+        { status: 400 }
+      )
+    }
+
+    if (!body.betSide || (body.betSide !== 'yes' && body.betSide !== 'no')) {
+      return NextResponse.json(
+        { error: 'Initial bet side (yes or no) is required to create a market' },
+        { status: 400 }
+      )
+    }
+
+    // Check token balance if wallet address and token mint are provided
+    if (body.creatorWalletAddress && body.tokenMint) {
+      try {
+        const balanceResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/tokens/balance?wallet=${body.creatorWalletAddress}&tokenMint=${body.tokenMint}`)
+        const balanceData = await balanceResponse.json()
+        
+        if (!balanceData.success) {
+          return NextResponse.json(
+            { error: `Failed to check token balance: ${balanceData.error}` },
+            { status: 400 }
+          )
+        }
+
+        // Require minimum 1 token to create market
+        if (balanceData.balance < 1) {
+          return NextResponse.json(
+            { error: `Insufficient ${body.tokenSymbol || 'token'} balance. You have ${balanceData.balance} tokens but need at least 1 token to create a market.` },
+            { status: 400 }
+          )
+        }
+
+        // Check initial bet amount if provided
+        if (body.initialBetAmount && parseFloat(body.initialBetAmount) > balanceData.balance) {
+          return NextResponse.json(
+            { error: `Insufficient balance for initial bet. You have ${balanceData.balance} ${body.tokenSymbol || 'tokens'} but trying to bet ${body.initialBetAmount}` },
+            { status: 400 }
+          )
+        }
+
+      } catch (error) {
+        console.error('Error checking token balance:', error)
+        return NextResponse.json(
+          { error: 'Failed to verify token balance' },
+          { status: 500 }
+        )
+      }
+    }
+
     // Get or create user if wallet address is provided
     let creatorUserId = null
     if (body.creatorWalletAddress) {

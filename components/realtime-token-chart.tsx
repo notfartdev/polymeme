@@ -115,17 +115,23 @@ export function RealtimeTokenChart({ tokenSymbol, tokenName, tokenLogo, chartSty
       const currentPrice = 0.9502 // Default fallback price
       const priceChange24h = 3.2 // Default fallback change
       
-      const fallbackData = {
+      const fallbackData: TokenData = {
         id: tokenSymbol.toLowerCase(),
         symbol: tokenSymbol.toUpperCase(),
         name: tokenSymbol.toLowerCase(),
+        image: '',
         current_price: currentPrice,
         market_cap: 950000000,
         total_volume: 320000000,
         market_cap_rank: 131,
         price_change_percentage_24h: priceChange24h,
+        price_change_percentage_7d: priceChange24h * 0.8,
+        price_change_percentage_30d: priceChange24h * 0.6,
         ath: currentPrice * 1.5,
-        ath_date: new Date().toISOString(),
+        ath_change_percentage: -20,
+        atl: currentPrice * 0.5,
+        atl_change_percentage: 100,
+        last_updated: new Date().toISOString(),
         circulating_supply: 998926392
       }
       
@@ -222,7 +228,7 @@ export function RealtimeTokenChart({ tokenSymbol, tokenName, tokenLogo, chartSty
       <Card className="p-6">
         <div className="text-center">
           <p className="text-red-500 mb-4">{error}</p>
-          <Button onClick={fetchTokenData} variant="outline">
+          <Button onClick={() => fetchTokenData()} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry
           </Button>

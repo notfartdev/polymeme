@@ -224,10 +224,10 @@ export function BettingInterface({
     
     // Get current pool totals (in tokens)
     const totalPool = poolData.yesPool.totalTokens + poolData.noPool.totalTokens
-    const currentOdds = poolData[selectedSide + 'Pool'].totalTokens / totalPool
+    const currentOdds = (selectedSide === 'yes' ? poolData.yesPool : poolData.noPool).totalTokens / totalPool
     
     // Calculate your share of the winning side (after your bet is added)
-    const yourPoolSide = poolData[selectedSide + 'Pool']
+    const yourPoolSide = selectedSide === 'yes' ? poolData.yesPool : poolData.noPool
     const yourShare = betAmountNum / (yourPoolSide.totalTokens + betAmountNum)
     
     // Calculate potential winnings: total pool * your share (proper pari-mutuel)

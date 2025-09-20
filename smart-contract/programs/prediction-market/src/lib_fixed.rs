@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Mint, Transfer};
 use anchor_spl::associated_token::AssociatedToken;
 
-declare_id!("So11111111111111111111111111111111111111112"); // Temporary program ID
+declare_id!("YourProgramIdHere"); // Replace with your actual program ID
 
 // Constants
 pub const GLOBAL_SEED: &str = "global";
@@ -124,7 +124,6 @@ pub mod prediction_market {
         bet.amount = bet_amount;
         bet.side = side;
         bet.timestamp = Clock::get()?.unix_timestamp;
-        bet.claimed = false;
         bet.bump = ctx.bumps.bet;
 
         // Transfer tokens to market (including fee)
