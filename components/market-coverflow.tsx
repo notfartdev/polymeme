@@ -164,6 +164,146 @@ const mockMarkets: Market[] = [
     category: "Solana",
     trending: "stable",
   },
+  {
+    id: "11",
+    title: "Will $PENGU (Pudgy Penguins) reach $100M market cap?",
+    title_zh: "$PENGU (Pudgy Penguins) 会达到 1 亿美元市值吗？",
+    description: "The official coin of the beloved Pudgy Penguins NFT brand",
+    description_zh: "深受喜爱的 Pudgy Penguins NFT 品牌官方代币",
+    yesPrice: 0.72,
+    noPrice: 0.28,
+    volume: "$1.8M",
+    participants: 2341,
+    endDate: "Dec 31, 2025",
+    category: "Meme Coin",
+    trending: "up",
+  },
+  {
+    id: "12",
+    title: "Will $TRUMP (Official Trump) flip $PEPE by 2025?",
+    title_zh: "$TRUMP (Official Trump) 会在 2025 年超越 $PEPE 吗？",
+    description: "Political memecoin taking on the meme coin king",
+    description_zh: "政治梗币挑战梗币之王",
+    yesPrice: 0.45,
+    noPrice: 0.55,
+    volume: "$3.2M",
+    participants: 1876,
+    endDate: "Dec 31, 2025",
+    category: "Meme Coin",
+    trending: "stable",
+  },
+  {
+    id: "13",
+    title: "Will $SAMO become the top dog meme coin on Solana?",
+    title_zh: "$SAMO 会成为 Solana 上最强的狗系梗币吗？",
+    description: "The OG Solana memecoin vs all the newcomers",
+    description_zh: "Solana 梗币元老对阵所有新秀",
+    yesPrice: 0.28,
+    noPrice: 0.72,
+    volume: "$890K",
+    participants: 1123,
+    endDate: "Jun 30, 2025",
+    category: "Meme Coin",
+    trending: "down",
+  },
+  {
+    id: "14",
+    title: "Will $USELESS reach $500M market cap by Q2 2025?",
+    title_zh: "$USELESS 会在 2025 年第二季度达到 5 亿美元市值吗？",
+    description: "The ironically named token that's proving quite useful",
+    description_zh: "这个反讽命名的代币证明了自己相当有用",
+    yesPrice: 0.63,
+    noPrice: 0.37,
+    volume: "$2.1M",
+    participants: 1456,
+    endDate: "Jun 30, 2025",
+    category: "Meme Coin",
+    trending: "up",
+  },
+  {
+    id: "15",
+    title: "Will $POPCAT hit $1B market cap before $BONK?",
+    title_zh: "$POPCAT 会在 $BONK 之前达到 10 亿美元市值吗？",
+    description: "The viral Popcat meme vs Solana's top dog",
+    description_zh: "病毒式传播的 Popcat 梗币对阵 Solana 顶级狗币",
+    yesPrice: 0.34,
+    noPrice: 0.66,
+    volume: "$1.7M",
+    participants: 987,
+    endDate: "Dec 31, 2025",
+    category: "Meme Coin",
+    trending: "down",
+  },
+  {
+    id: "16",
+    title: "Will $PNUT (Peanut the Squirrel) 10x by end of 2025?",
+    title_zh: "$PNUT (Peanut the Squirrel) 会在 2025 年底前涨 10 倍吗？",
+    description: "The cute squirrel mascot climbing to new heights",
+    description_zh: "可爱的松鼠吉祥物攀登新高度",
+    yesPrice: 0.52,
+    noPrice: 0.48,
+    volume: "$1.3M",
+    participants: 756,
+    endDate: "Dec 31, 2025",
+    category: "Meme Coin",
+    trending: "up",
+  },
+  {
+    id: "17",
+    title: "Will a CCM coin reach $1B market cap in 2025?",
+    title_zh: "会有 CCM 代币在 2025 年达到 10 亿美元市值吗？",
+    description: "The next generation of community-driven meme coins",
+    description_zh: "下一代社区驱动的梗币",
+    yesPrice: 0.58,
+    noPrice: 0.42,
+    volume: "$1.4M",
+    participants: 892,
+    endDate: "Dec 31, 2025",
+    category: "Meme Coin",
+    trending: "up",
+  },
+  {
+    id: "18",
+    title: "Will $MYRO become the #2 dog coin on Solana?",
+    title_zh: "$MYRO 会成为 Solana 上第二强的狗币吗？",
+    description: "Raj Gokal's dog tribute token vs the competition",
+    description_zh: "Raj Gokal 的狗致敬代币对阵竞争对手",
+    yesPrice: 0.67,
+    noPrice: 0.33,
+    volume: "$1.9M",
+    participants: 1234,
+    endDate: "Jun 30, 2025",
+    category: "Meme Coin",
+    trending: "up",
+  },
+  {
+    id: "19",
+    title: "Will a new Solana meme coin hit $1B in 2025?",
+    title_zh: "会有新的 Solana 梗币在 2025 年达到 10 亿美元吗？",
+    description: "The next billion dollar meme coin from Solana",
+    description_zh: "下一个来自 Solana 的十亿美元梗币",
+    yesPrice: 0.78,
+    noPrice: 0.22,
+    volume: "$2.8M",
+    participants: 2156,
+    endDate: "Dec 31, 2025",
+    category: "Meme Coin",
+    trending: "up",
+  },
+  {
+    id: "20",
+    title: "Will Solana meme coins reach $50B total market cap?",
+    title_zh: "Solana 梗币总市值会达到 500 亿美元吗？",
+    description: "The entire Solana memecoin ecosystem milestone",
+    description_zh: "整个 Solana 梗币生态系统里程碑",
+    yesPrice: 0.35,
+    noPrice: 0.65,
+    volume: "$4.1M",
+    participants: 3421,
+    endDate: "Dec 31, 2025",
+    category: "Solana",
+    trending: "stable",
+  },
 ]
 
 export function MarketCoverflow() {
@@ -173,6 +313,8 @@ export function MarketCoverflow() {
   const containerRef = useRef<HTMLDivElement>(null)
   const startX = useRef(0)
   const scrollLeft = useRef(0)
+
+  // Debug logs removed for production build
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
@@ -225,8 +367,13 @@ export function MarketCoverflow() {
     const walk = (startX.current - x) / 80 // Reduced from 100 to 80 for better sensitivity
     const newIndex = Math.round(scrollLeft.current + walk)
 
+    // Allow wrapping around the array
     if (newIndex >= 0 && newIndex < mockMarkets.length) {
       setCurrentIndex(newIndex)
+    } else if (newIndex < 0) {
+      setCurrentIndex(mockMarkets.length - 1)
+    } else if (newIndex >= mockMarkets.length) {
+      setCurrentIndex(0)
     }
   }
 
@@ -242,10 +389,10 @@ export function MarketCoverflow() {
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
     const cardSpacing = isMobile ? 240 : 320
     const rotation = isMobile ? 0 : (index - currentIndex) * -25
-    const translateZ = isMobile ? 0 : (isCenter ? 0 : -100)
+    const translateZ = isMobile ? 0 : (isCenter ? 20 : -100)
     
-    // Limit the number of visible cards to prevent overflow
-    const maxVisibleDistance = isMobile ? 1 : 2
+    // Limit the number of visible cards to prevent overflow (increased range)
+    const maxVisibleDistance = isMobile ? 2 : 3
     if (distance > maxVisibleDistance) {
       return {
         transform: `translateX(${(index - currentIndex) * cardSpacing}px) scale(0) rotateY(${rotation}deg) translateZ(${translateZ}px)`,
@@ -259,16 +406,16 @@ export function MarketCoverflow() {
       transform: `
         translateX(${(index - currentIndex) * cardSpacing}px) 
         rotateY(${rotation}deg) 
-        scale(${isCenter ? 1 : 0.8})
+        scale(${isCenter ? 1.05 : 0.8})
         translateZ(${translateZ}px)
       `,
       opacity: distance > maxVisibleDistance ? 0 : isCenter ? 1 : 0.6,
-      zIndex: isCenter ? 10 : 10 - distance,
+      zIndex: isCenter ? 20 : 10 - distance,
     }
   }
 
   return (
-    <div className="relative w-full h-[400px] sm:h-[450px] md:h-[500px] bg-gradient-to-b from-background to-muted/20 px-4 sm:px-8 md:px-20 lg:px-40 overflow-hidden">
+    <div key={`coverflow-${mockMarkets.length}`} className="relative w-full h-[400px] sm:h-[450px] md:h-[500px] bg-gradient-to-b from-background to-muted/20 px-4 sm:px-8 md:px-20 lg:px-40 overflow-hidden">
       <div className="absolute inset-0 flex items-center justify-center perspective-1000">
         <div
           ref={containerRef}
@@ -282,14 +429,31 @@ export function MarketCoverflow() {
           {mockMarkets.map((market, index) => (
             <Card
               key={market.id}
-              className="absolute w-72 sm:w-80 h-80 sm:h-96 cursor-pointer transition-all duration-500 ease-out hover:shadow-xl border-2 hover:border-primary/50"
+              className={`absolute w-72 sm:w-80 h-80 sm:h-96 cursor-pointer transition-all duration-500 ease-out hover:shadow-xl border-2 hover:border-primary/50 group ${
+                market.trending === "up" 
+                  ? "hover:shadow-green-500/30 border-green-200/50" 
+                  : market.trending === "down"
+                  ? "hover:shadow-red-500/30 border-red-200/50"
+                  : "hover:shadow-blue-500/30 border-blue-200/50"
+              }`}
               style={getCardStyle(index)}
               onClick={() => setCurrentIndex(index)}
             >
               <CardContent className="p-4 sm:p-6 md:p-7 h-full flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <Badge variant="secondary" className="text-xs bg-violet-400 text-white hover:bg-violet-500">
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs text-white hover:opacity-90 transition-all ${
+                        market.category === "Meme Coin"
+                          ? "bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+                          : market.category === "Solana"
+                          ? "bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700"
+                          : market.category === "Pump.fun"
+                          ? "bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+                          : "bg-gradient-to-r from-gray-500 to-slate-600 hover:from-gray-600 hover:to-slate-700"
+                      }`}
+                    >
                       {market.category === "Meme Coin"
                         ? t("category_meme")
                         : market.category === "Solana"
@@ -299,8 +463,21 @@ export function MarketCoverflow() {
                         : market.category}
                     </Badge>
                     <div className="flex items-center gap-1">
-                      {market.trending === "up" && <TrendingUp className="w-4 h-4 text-green-500" />}
-                      {market.trending === "down" && <TrendingDown className="w-4 h-4 text-red-500" />}
+                      {market.trending === "up" && (
+                        <div className="relative">
+                          <TrendingUp className="w-4 h-4 text-green-500 animate-bounce" />
+                          <div className="absolute inset-0 w-4 h-4 bg-green-500 rounded-full opacity-20 animate-ping"></div>
+                        </div>
+                      )}
+                      {market.trending === "down" && (
+                        <div className="relative">
+                          <TrendingDown className="w-4 h-4 text-red-500 animate-bounce" />
+                          <div className="absolute inset-0 w-4 h-4 bg-red-500 rounded-full opacity-20 animate-ping"></div>
+                        </div>
+                      )}
+                      {market.trending === "stable" && (
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      )}
                     </div>
                   </div>
 
@@ -314,9 +491,9 @@ export function MarketCoverflow() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-center rounded-md cursor-pointer transition-all hover:opacity-90 text-white shadow-lg hover:shadow-green-500/80"
+                      className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-center rounded-md cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl text-white shadow-lg group-hover:shadow-green-500/50"
                       style={{
-                        backgroundColor: "#10b981",
+                        background: "linear-gradient(135deg, #10b981, #059669)",
                         color: "#ffffff",
                         border: "none",
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
@@ -325,9 +502,9 @@ export function MarketCoverflow() {
                       {t("yes")} {(market.yesPrice * 100).toFixed(1)}%
                     </button>
                     <button
-                      className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-center rounded-md cursor-pointer transition-all hover:bg-red-50 shadow-lg hover:shadow-red-500/80"
+                      className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-center rounded-md cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-lg group-hover:shadow-red-500/50"
                       style={{
-                        backgroundColor: "#ffffff",
+                        background: "linear-gradient(135deg, #ffffff, #fef2f2)",
                         color: "#dc2626",
                         border: "1px solid #f87171",
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",

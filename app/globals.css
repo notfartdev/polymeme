@@ -123,6 +123,62 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Minimalist cursor styles for Polymeme */
+  
+  /* Ensure proper cursor states for interactive elements */
+  button, 
+  [role="button"], 
+  a, 
+  [href], 
+  input[type="button"], 
+  input[type="submit"], 
+  input[type="reset"],
+  .cursor-pointer {
+    cursor: pointer !important;
+  }
+  
+  button:disabled,
+  input:disabled,
+  .disabled {
+    cursor: not-allowed !important;
+  }
+  
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    cursor: text !important;
+  }
+  
+  /* Loading states */
+  .loading,
+  .cursor-wait {
+    cursor: wait !important;
+  }
+  
+  /* Resize cursors for better UX */
+  .cursor-resize {
+    cursor: resize !important;
+  }
+  
+  .cursor-move {
+    cursor: move !important;
+  }
+  
+  /* Subtle pulse glow for market cards */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  .pulse-glow-green {
+    animation: pulse-glow-green 2s ease-in-out infinite;
+  }
+  
+  .pulse-glow-blue {
+    animation: pulse-glow-blue 2s ease-in-out infinite;
+  }
 }
 
 @layer utilities {
@@ -143,5 +199,50 @@
     .glow-pulse {
       animation: none;
     }
+  }
+  
+  /* Pulse glow animations for market cards */
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+    }
+    50% {
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+    }
+  }
+  
+  @keyframes pulse-glow-green {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+    50% {
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+    }
+  }
+  
+  @keyframes pulse-glow-blue {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+    50% {
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+  }
+
+  /* Animation delays for loading components */
+  .animation-delay-75 {
+    animation-delay: 75ms;
+  }
+  
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+  
+  .animation-delay-150 {
+    animation-delay: 150ms;
+  }
+  
+  .animation-delay-200 {
+    animation-delay: 200ms;
   }
 }

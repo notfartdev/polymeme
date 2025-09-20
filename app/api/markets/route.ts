@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+// Force dynamic rendering for API routes
+export const dynamic = 'force-dynamic'
+
 // Types for market creation
 export interface CreateMarketRequest {
   asset: string

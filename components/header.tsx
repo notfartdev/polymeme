@@ -145,11 +145,11 @@ export function Header() {
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 w-full">
         <div className="flex items-center gap-4 sm:gap-8">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">P</span>
-            </div>
-            <span className="font-bold text-lg sm:text-xl text-primary hidden sm:block">PredictMarket</span>
-            <span className="font-bold text-lg sm:text-xl text-primary sm:hidden">PM</span>
+            <img 
+              src="/logo.png" 
+              alt="Polymeme" 
+              className="h-32 w-auto"
+            />
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">

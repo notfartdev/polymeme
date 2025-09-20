@@ -9,9 +9,9 @@ import { WalletContextProvider } from '@/contexts/WalletContext'
 import { UserProvider } from '@/contexts/UserContext'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: 'Polymeme - Prediction Markets',
+  description: 'Trade on the future with Polymeme prediction markets. Bet on crypto, politics, and more.',
+  generator: 'Polymeme',
 }
 
 export default function RootLayout({

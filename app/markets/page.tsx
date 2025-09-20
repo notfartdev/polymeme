@@ -61,17 +61,22 @@ export default function MarketsPage() {
           const markets = await response.json()
           setRealMarkets(markets)
           
-          // Fetch token images for crypto markets
-          const cryptoAssets = [...new Set(markets.map(m => m.asset).filter(Boolean))]
-          if (cryptoAssets.length > 0) {
-            const tokenData = await CoinGeckoAPI.getMultipleTokensData(cryptoAssets)
-            const images: Record<string, string> = {}
-            Object.entries(tokenData).forEach(([symbol, data]) => {
-              if (data.image) {
-                images[symbol] = data.image
-              }
-            })
-            setTokenImages(images)
+          // Fetch token images for crypto markets (optional, don't block on failure)
+          try {
+            const cryptoAssets = [...new Set(markets.map(m => m.asset).filter(Boolean))]
+            if (cryptoAssets.length > 0) {
+              const tokenData = await CoinGeckoAPI.getMultipleTokensData(cryptoAssets)
+              const images: Record<string, string> = {}
+              Object.entries(tokenData).forEach(([symbol, data]) => {
+                if (data.image) {
+                  images[symbol] = data.image
+                }
+              })
+              setTokenImages(images)
+            }
+          } catch (imageError) {
+            console.warn('Failed to fetch token images:', imageError)
+            // Continue without images
           }
         }
       } catch (error) {
@@ -213,10 +218,48 @@ export default function MarketsPage() {
       {/* Markets Grid */}
       <div className="container mx-auto px-4 py-6">
         {loading ? (
-          <div className="flex items-center justify-center h-64">
+          <div className="flex items-center justify-center h-96">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading markets...</p>
+              {/* Animated logo with pulse effect */}
+              <div className="relative mb-6">
+                <div className="animate-pulse">
+                  <img 
+                    src="/logo.png" 
+                    alt="Polymeme" 
+                    className="h-16 w-auto mx-auto opacity-80"
+                  />
+                </div>
+                {/* Pulsing rings around logo with smooth gradients */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-ping absolute inline-flex h-20 w-20 rounded-full bg-gradient-to-r from-green-400 to-emerald-400 opacity-20"></div>
+                  <div className="animate-ping absolute inline-flex h-24 w-24 rounded-full bg-gradient-to-r from-red-400 to-pink-400 opacity-15 animation-delay-75"></div>
+                  <div className="animate-ping absolute inline-flex h-28 w-28 rounded-full bg-gradient-to-r from-purple-400 to-violet-400 opacity-10 animation-delay-150"></div>
+                </div>
+              </div>
+              
+              {/* Loading text with smooth gradient transitions */}
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold bg-gradient-to-r from-green-500 via-emerald-500 via-red-500 via-purple-500 to-violet-500 bg-clip-text text-transparent animate-pulse">
+                  Loading
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  Fetching the latest meme prediction markets...
+                </p>
+              </div>
+              
+              {/* Animated progress dots with gradient backgrounds */}
+              <div className="flex justify-center space-x-2 mt-6">
+                <div className="w-2 h-2 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-bounce shadow-sm"></div>
+                <div className="w-2 h-2 bg-gradient-to-r from-red-400 to-pink-500 rounded-full animate-bounce animation-delay-100 shadow-sm"></div>
+                <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-violet-500 rounded-full animate-bounce animation-delay-200 shadow-sm"></div>
+              </div>
+              
+              {/* Loading bar with smooth gradient transitions */}
+              <div className="mt-6 w-64 mx-auto">
+                <div className="h-1 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-400 via-emerald-500 via-red-500 via-purple-500 to-violet-500 rounded-full animate-pulse shadow-sm"></div>
+                </div>
+              </div>
             </div>
           </div>
         ) : sortedMarkets.length === 0 ? (
@@ -236,13 +279,20 @@ export default function MarketsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sortedMarkets.map((market) => {
             const mainPercentage = market.percentage || (market.options ? market.options[0].percentage : 50)
+            
+            // Check if this is a high volume market (top 20% by volume)
+            const volumes = sortedMarkets.map(m => m.totalVolume || 0).filter(v => v > 0)
+            const highVolumeThreshold = volumes.length > 0 ? Math.max(...volumes) * 0.8 : 0
+            const isHighVolume = (market.totalVolume || 0) >= highVolumeThreshold && market.status === 'active'
 
             return (
               <Link key={market.id} href={`/markets/${market.id}`}>
-                <Card className={`p-4 transition-all duration-300 cursor-pointer bg-card border-border group ${
-                  market.status === 'active' 
-                    ? 'hover:shadow-lg hover:shadow-green-500/20 hover:border-green-200' 
-                    : 'hover:shadow-lg hover:shadow-gray-500/20 hover:border-gray-200 opacity-90'
+                <Card className={`p-4 transition-all duration-300 cursor-pointer bg-card border-border group relative ${
+                  isHighVolume
+                    ? 'border-2 border-green-500 shadow-lg shadow-green-500/20 hover:shadow-xl hover:shadow-green-500/30 hover:scale-105 bg-gradient-to-br from-green-50/10 to-emerald-50/10 dark:from-green-950/10 dark:to-emerald-950/10 pulse-glow-green'
+                    : market.status === 'active' 
+                      ? 'hover:shadow-lg hover:shadow-green-500/20 hover:border-green-200 pulse-glow' 
+                      : 'hover:shadow-lg hover:shadow-gray-500/20 hover:border-gray-200 opacity-90'
                 }`}>
                   {/* Header with image, question, and watchlist */}
                   <div className="flex items-start gap-3 mb-4">
