@@ -48,7 +48,10 @@ export class MarketScheduler {
   // Process a single market resolution
   public static async processMarketResolution(resolution: ScheduledResolution): Promise<boolean> {
     try {
-      console.log(`Processing resolution for market ${resolution.marketId}`)
+      console.log(`🔄 Processing resolution for market ${resolution.marketId}`)
+      console.log(`📋 Question: "${resolution.question}"`)
+      console.log(`🏷️ Type: ${resolution.questionType}`)
+      console.log(`📅 Closing Date: ${resolution.closingDate}`)
       
       // Import resolution function
       const { resolveMarket } = await import('./market-resolution')
@@ -61,6 +64,12 @@ export class MarketScheduler {
         resolution.resolutionCriteria,
         resolution.closingDate
       )
+
+      console.log(`📊 Resolution result:`, {
+        resolution: resolutionData.resolution,
+        confidence: resolutionData.resolutionData.confidence,
+        dataSource: resolutionData.resolutionData.dataSource
+      })
 
       // Update market in database
       const { error: updateError } = await supabase
@@ -75,15 +84,35 @@ export class MarketScheduler {
         .eq('id', resolution.marketId)
 
       if (updateError) {
-        console.error('Error updating market resolution:', updateError)
+        console.error('❌ Error updating market resolution:', updateError)
         return false
       }
 
-      console.log(`Successfully resolved market ${resolution.marketId}: ${resolutionData.resolution}`)
+      console.log(`✅ Successfully resolved market ${resolution.marketId}: ${resolutionData.resolution}`)
       return true
 
     } catch (error) {
-      console.error(`Error processing resolution for market ${resolution.marketId}:`, error)
+      console.error(`❌ Error processing resolution for market ${resolution.marketId}:`, error)
+      
+      // Try to mark as disputed if resolution completely fails
+      try {
+        const { error: updateError } = await supabase
+          .from('markets')
+          .update({
+            status: 'closed',
+            resolution: 'disputed',
+            resolved_at: new Date().toISOString(),
+            dispute_reason: 'Resolution processing failed'
+          })
+          .eq('id', resolution.marketId)
+        
+        if (!updateError) {
+          console.log(`⚠️ Marked market ${resolution.marketId} as disputed due to processing error`)
+        }
+      } catch (updateError) {
+        console.error(`❌ Failed to mark market ${resolution.marketId} as disputed:`, updateError)
+      }
+      
       return false
     }
   }

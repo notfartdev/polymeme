@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { TrendingUp, Hash, Clock, Users, Heart } from "lucide-react"
+import { TrendingUp, Hash, Clock, Users, Heart, CheckCircle } from "lucide-react"
 import Header from "@/components/header"
 import Link from "next/link"
 import { useI18n } from "@/lib/i18n"
 import { format } from "date-fns"
 import { CoinGeckoAPI, TokenData } from "@/lib/coingecko"
 
-const categories = ["All", "Active", "Completed"] // All, Active and completed markets
+const categories = ["Active", "Completed"] // Active and completed markets
 const tokenFilters = ["All", "WIF", "SOL", "ETH", "BTC", "PEPE", "PUMP", "SHIBA", "TROLL"] // Token filters
 
 // Interface for real market data
@@ -36,6 +36,7 @@ interface MarketData {
   totalYesBets?: number
   totalNoBets?: number
   totalVolume?: number
+  resolution?: 'yes' | 'no' | 'disputed'
 }
 
 // Mock markets for demo (will be replaced by real data)
@@ -109,6 +110,7 @@ export default function MarketsPage() {
       creator: market.creator,
       isReal: true,
       totalYesBets: totalYes,
+      resolution: market.resolution,
       totalNoBets: totalNo,
       totalBets: totalBets
     }
@@ -126,12 +128,43 @@ export default function MarketsPage() {
     } else if (selectedCategory === "Completed") {
       matchesCategory = !isActive
     }
-    // "All" shows everything
     
     // Filter by token type
     const matchesToken = selectedToken === "All" || market.asset === selectedToken
     
+    // If a specific token is selected, show both active and completed for that token
+    if (selectedToken !== "All") {
+      return matchesToken // Show all markets for the selected token
+    }
+    
     return matchesCategory && matchesToken
+  })
+
+  // Sort markets by closing date
+  const sortedMarkets = filteredMarkets.sort((a, b) => {
+    const now = new Date()
+    const closingDateA = new Date(a.closingDate)
+    const closingDateB = new Date(b.closingDate)
+    
+    // Check if markets are active or completed
+    const isActiveA = closingDateA.getTime() > now.getTime()
+    const isActiveB = closingDateB.getTime() > now.getTime()
+    
+    // If both are active, sort by closing date (soonest first)
+    if (isActiveA && isActiveB) {
+      return closingDateA.getTime() - closingDateB.getTime()
+    }
+    
+    // If both are completed, sort by closing date (most recent first)
+    if (!isActiveA && !isActiveB) {
+      return closingDateB.getTime() - closingDateA.getTime()
+    }
+    
+    // If one is active and one is completed, active comes first
+    if (isActiveA && !isActiveB) return -1
+    if (!isActiveA && isActiveB) return 1
+    
+    return 0
   })
 
   return (
@@ -186,7 +219,7 @@ export default function MarketsPage() {
               <p className="text-muted-foreground">Loading markets...</p>
             </div>
           </div>
-        ) : filteredMarkets.length === 0 ? (
+        ) : sortedMarkets.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
               <Hash className="h-8 w-8 text-muted-foreground" />
@@ -201,12 +234,16 @@ export default function MarketsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredMarkets.map((market) => {
+            {sortedMarkets.map((market) => {
             const mainPercentage = market.percentage || (market.options ? market.options[0].percentage : 50)
 
             return (
               <Link key={market.id} href={`/markets/${market.id}`}>
-                <Card className="p-4 hover:shadow-lg hover:shadow-green-500/20 hover:border-green-200 transition-all duration-300 cursor-pointer bg-card border-border group">
+                <Card className={`p-4 transition-all duration-300 cursor-pointer bg-card border-border group ${
+                  market.status === 'active' 
+                    ? 'hover:shadow-lg hover:shadow-green-500/20 hover:border-green-200' 
+                    : 'hover:shadow-lg hover:shadow-gray-500/20 hover:border-gray-200 opacity-90'
+                }`}>
                   {/* Header with image, question, and watchlist */}
                   <div className="flex items-start gap-3 mb-4">
                     {market.isReal ? (
@@ -297,22 +334,75 @@ export default function MarketsPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 mb-3">
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-green-200 hover:bg-green-300 text-green-900 hover:shadow-lg hover:shadow-green-300/50 dark:bg-green-800/40 dark:hover:bg-green-700/50 dark:text-green-200"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {t("yes_cap")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-red-200 hover:bg-red-300 text-red-900 hover:shadow-lg hover:shadow-red-300/50 dark:bg-red-800/40 dark:hover:bg-red-700/50 dark:text-red-200"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {t("no_cap")}
-                    </Button>
-                  </div>
+                  {/* Betting Buttons - Only show for active markets */}
+                  {market.status === 'active' && (
+                    <div className="flex gap-2 mb-3">
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-green-200 hover:bg-green-300 text-green-900 hover:shadow-lg hover:shadow-green-300/50 dark:bg-green-800/40 dark:hover:bg-green-700/50 dark:text-green-200"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {t("yes_cap")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-red-200 hover:bg-red-300 text-red-900 hover:shadow-lg hover:shadow-red-300/50 dark:bg-red-800/40 dark:hover:bg-red-700/50 dark:text-red-200"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {t("no_cap")}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Completion Stamp - Only show for closed markets */}
+                  {market.status === 'closed' && (
+                    <div className="mb-3 flex justify-center">
+                      <div className="relative transform rotate-[-2deg]">
+                        {/* Color-coded document stamp */}
+                        <div className={`text-white px-6 py-3 rounded-full border-4 font-bold text-lg tracking-wide shadow-lg ${
+                          market.resolution === 'yes'
+                            ? 'bg-green-600 border-green-800'
+                            : market.resolution === 'no'
+                            ? 'bg-red-600 border-red-800'
+                            : market.resolution === 'disputed'
+                            ? 'bg-gray-600 border-gray-800'
+                            : 'bg-orange-600 border-orange-800'
+                        }`}>
+                          {market.resolution ? (
+                            <div className="text-center">
+                              {market.resolution === 'disputed' ? (
+                                <>
+                                  <div className="text-sm">WINNER</div>
+                                  <div className="text-xl">DISPUTED</div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm">WINNER</div>
+                                  <div className="text-xl">{market.resolution.toUpperCase()}</div>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <div className="text-sm">PENDING</div>
+                              <div className="text-xl">RESOLUTION</div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Stamp shadow */}
+                        <div className={`absolute inset-0 transform translate-x-1 translate-y-1 rounded-full opacity-50 -z-10 ${
+                          market.resolution === 'yes'
+                            ? 'bg-green-900'
+                            : market.resolution === 'no'
+                            ? 'bg-red-900'
+                            : market.resolution === 'disputed'
+                            ? 'bg-gray-900'
+                            : 'bg-orange-900'
+                        }`}></div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Enhanced Market Stats */}
                   <div className="space-y-2">
@@ -340,7 +430,7 @@ export default function MarketsPage() {
                               const diffMs = closing.getTime() - now.getTime()
                               
                               if (diffMs <= 0) {
-                                return "Expired"
+                                return market.status === 'closed' ? "Closed" : "Expired"
                               }
                               
                               const totalMinutes = Math.floor(diffMs / (1000 * 60))

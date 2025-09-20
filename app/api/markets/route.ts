@@ -63,6 +63,7 @@ export interface MarketResponse {
   totalYesBets?: number
   totalNoBets?: number
   totalVolume?: number
+  resolution?: 'yes' | 'no' | 'disputed'
   // Comprehensive market rules
   resolutionCriteria?: string
   dataSources?: string
@@ -323,6 +324,7 @@ export async function GET() {
       totalYesBets: market.total_yes_bets,
       totalNoBets: market.total_no_bets,
       totalVolume: market.total_volume,
+      resolution: market.resolution,
       // Comprehensive market rules
       resolutionCriteria: market.resolution_criteria,
       dataSources: market.data_sources,
